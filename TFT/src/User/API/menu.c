@@ -1229,7 +1229,7 @@ void loopCheckBackPress(void)
 
     TS_Sound = true;
 
-    if (tempKey != KEY_IDLE && getCurMenuItems()->items[tempKey].label.index == LABEL_BACK)  // check if Back button is held
+    if (tempKey < COUNT(getCurMenuItems()->items)) && getCurMenuItems()->items[tempKey].label.index == LABEL_BACK)  // check if Back button is held
     {
       BUZZER_PLAY(SOUND_OK);
 
