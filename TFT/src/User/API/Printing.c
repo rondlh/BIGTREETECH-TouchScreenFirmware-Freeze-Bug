@@ -951,7 +951,7 @@ void loopPrintFromOnboard(void)
   do
   { // send M27 to query SD print status continuously
 
-    if (OS_GetTimeMs() < nextUpdateTime)  // if next check time not yet elapsed, do nothing
+    if (PENDING(nextUpdateTime))  // if next check time not yet elapsed, do nothing
       break;
 
     printSetNextUpdateTime();  // extend next check time

@@ -122,7 +122,7 @@ void rrfStatusQuery(void)
   {
     static uint32_t rrf_next_query_time = 0;
 
-    if (OS_GetTimeMs() < rrf_next_query_time)
+    if (PENDING(rrf_next_query_time))
       return;
 
     rrf_next_query_time = OS_GetTimeMs() + rrf_query_interval;

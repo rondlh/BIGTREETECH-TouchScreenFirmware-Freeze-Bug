@@ -12,7 +12,7 @@ bool Touch_Enc_ReadPen(uint16_t duration)
     return false;
   }
 
-  if (OS_GetTimeMs() - lastTime < duration)  // if touch screen held pressed but provided duration not yet reached
+  if (!ELAPSED(lastTime, duration))  // if touch screen held pressed but provided duration not yet reached
     return false;
 
   // touch screen held pressed for the provided duration
@@ -38,7 +38,7 @@ bool Touch_Enc_ReadBtn(uint16_t duration)
     return false;
   }
 
-  if (OS_GetTimeMs() - lastTime < duration)  // if touch screen held pressed but provided duration not yet reached
+  if (!ELAPSED(lastTime, duration))  // if touch screen held pressed but provided duration not yet reached
     return false;
 
   // touch screen held pressed for the provided duration

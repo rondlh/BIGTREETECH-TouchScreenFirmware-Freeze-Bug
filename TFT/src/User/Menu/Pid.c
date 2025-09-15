@@ -243,7 +243,7 @@ void menuPid(void)
       if (getMenuType() != MENU_TYPE_SPLASH)
         popupSplash(DIALOG_TYPE_INFO, LABEL_SCREEN_INFO, LABEL_BUSY);
 
-      if (OS_GetTimeMs() >= pidTimeout)
+      if (!PENDING(pidTimeout))
         pidUpdateStatus(PID_TIMEOUT);
 
       if (pidStatus != PID_RUNNING)

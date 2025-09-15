@@ -111,7 +111,7 @@ void probeHeightQueryCoord(void)
 {
   static uint32_t nextUpdateTime = 0;
 
-  if (OS_GetTimeMs() < nextUpdateTime)
+  if (PENDING(nextUpdateTime))
     return;
 
   nextUpdateTime = OS_GetTimeMs() + PROBE_REFRESH_TIME;

@@ -88,7 +88,7 @@ static bool FIL_NormalRunoutDetect(void)
   static int32_t trigBalance = 0;
   static uint32_t nextUpdateTime = 0;
 
-  if (OS_GetTimeMs() < nextUpdateTime)
+  if (PENDING(nextUpdateTime))
   {
     bool pinState = false;
     uint8_t toolNum = heatGetToolIndex();
@@ -160,7 +160,7 @@ static inline bool FIL_SmartRunoutDetect(void)
   do
   { // send M114 E to query extrude position continuously
 
-    if (OS_GetTimeMs() < nextUpdateTime)  // if next check time not yet elapsed, do nothing
+    if (PENDING(nextUpdateTime))  // if next check time not yet elapsed, do nothing
       break;
 
     nextUpdateTime = OS_GetTimeMs() + FIL_POS_E_REFRESH_TIME;  // extend next check time
@@ -230,7 +230,7 @@ void FIL_FE_CheckRunout(void)
     popupDialog(DIALOG_TYPE_ALERT, LABEL_WARNING, LABEL_FILAMENT_RUNOUT, LABEL_CONFIRM, LABEL_NULL, setRunoutAlarmFalse, NULL, NULL);
   }
 
-  if (OS_GetTimeMs() >= nextReminderTime && getRunoutAlarm())
+  if (!PENDING(nextReminderTime) && getRunoutAlarm())
   {
     BUZZER_PLAY(SOUND_ERROR);
     nextReminderTime = OS_GetTimeMs() + FIL_ALARM_REMINDER_TIME;

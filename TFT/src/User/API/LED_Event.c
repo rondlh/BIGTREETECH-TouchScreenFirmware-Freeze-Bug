@@ -19,7 +19,7 @@ static inline bool nextUpdate(void)
 {
   static uint32_t lastUpdateTime = 0;
 
-  if (OS_GetTimeMs() - lastUpdateTime < LED_REFRESH_TIME)
+  if (!ELAPSED(lastUpdateTime, LED_REFRESH_TIME))
     return false;
 
   lastUpdateTime = OS_GetTimeMs();

@@ -115,7 +115,7 @@ void LCD_CheckDimming(void)
     #endif
     )  // if touch screen not pressed and rotary encoder neither pressed nor rotated
   {
-    if (lcd_dim.dimmed || OS_GetTimeMs() < lcd_dim.next_idle_time)
+    if (lcd_dim.dimmed || PENDING(lcd_dim.next_idle_time))
       return;
 
     lcd_dim.locked = false;

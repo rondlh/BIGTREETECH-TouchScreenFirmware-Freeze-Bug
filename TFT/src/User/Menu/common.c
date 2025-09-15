@@ -98,7 +98,7 @@ bool nextScreenUpdate(uint32_t refreshTime)
 {
   static uint32_t lastTime = 0;
 
-  if (OS_GetTimeMs() - lastTime < refreshTime)
+  if (!ELAPSED(lastTime, refreshTime))
     return false;
 
   lastTime = OS_GetTimeMs();

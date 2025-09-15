@@ -616,7 +616,7 @@ void setReminderMsg(int16_t inf, SYS_STATUS status)
 
 void loopReminderManage(void)
 {
-  if (reminder.status == SYS_STATUS_IDLE || OS_GetTimeMs() < reminder.time)
+  if (reminder.status == SYS_STATUS_IDLE || PENDING(reminder.time))
     return;
 
   if (infoHost.connected == false)
@@ -664,7 +664,7 @@ void drawBusySign(void)
 
 void loopBusySignClear(void)
 {
-  if (busySign.status == SYS_STATUS_IDLE || OS_GetTimeMs() < busySign.time)
+  if (busySign.status == SYS_STATUS_IDLE || PENDING(busySign.time))
     return;
 
   busySign.status = SYS_STATUS_IDLE;  // clear busy signal status

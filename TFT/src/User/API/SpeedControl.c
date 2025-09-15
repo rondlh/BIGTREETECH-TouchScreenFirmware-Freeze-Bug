@@ -38,7 +38,7 @@ void loopCheckSpeed(void)
 {
   static uint32_t nextUpdateTime = 0;
 
-  if (OS_GetTimeMs() < nextUpdateTime)  // avoid rapid fire, clogging the queue
+  if (PENDING(nextUpdateTime))  // avoid rapid fire, clogging the queue
     return;
 
   nextUpdateTime = OS_GetTimeMs() + SPEED_REFRESH_TIME;  // extend next check time

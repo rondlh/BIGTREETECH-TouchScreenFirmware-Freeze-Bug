@@ -60,7 +60,7 @@ bool LCD_Enc_ReadBtn(uint16_t duration)
     return false;
   }
 
-  if (OS_GetTimeMs() - lastTime < duration)  // if rotary encoder button held pressed but provided duration not yet reached
+  if (!ELAPSED(lastTime, duration))  // if rotary encoder button held pressed but provided duration not yet reached
     return false;
 
   // rotary encoder button held pressed for the provided duration

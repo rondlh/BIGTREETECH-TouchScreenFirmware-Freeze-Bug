@@ -65,7 +65,7 @@ static void m291_cancel(void)
 
 static void m291_loop(void)
 {
-  if (m291_mode == -1 || (expire_time > 0 && OS_GetTimeMs() >= expire_time))
+  if ((m291_mode == -1) || (expire_time && !PENDING(expire_time)))
   {
     if (rrfStatusIsMacroBusy())
       rrfShowRunningMacro();

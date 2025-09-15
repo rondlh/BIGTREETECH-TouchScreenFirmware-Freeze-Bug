@@ -125,7 +125,7 @@ static inline bool toastAvailable(void)
 void loopToast(void)
 {
   // if no new toast is available or it is not yet expired on screen or in case a full screen menu is displayed, do nothing
-  if (_toastAvailable == false || OS_GetTimeMs() < nextToastTime || getMenuType() == MENU_TYPE_FULLSCREEN)
+  if (_toastAvailable == false || PENDING(nextToastTime) || getMenuType() == MENU_TYPE_FULLSCREEN)
     return;
 
   if (toastAvailable())
