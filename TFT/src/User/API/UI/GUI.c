@@ -67,14 +67,7 @@ void GUI_CancelRange(void)
 
 void GUI_Clear(uint16_t color)
 {
-  uint32_t index = 0;
-
-  LCD_SetWindow(0, 0, LCD_WIDTH - 1, LCD_HEIGHT - 1);
-
-  for (index = 0; index < LCD_WIDTH * LCD_HEIGHT; index++)
-  {
-    LCD_WR_16BITS_DATA(color);
-  }
+  GUI_FillRectColor(0, 0, LCD_WIDTH, LCD_HEIGHT, color);
 }
 
 /** @brief Draw a pixel/point
@@ -119,6 +112,8 @@ void GUI_FillRect(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey)
     {
       LCD_WR_16BITS_DATA(foreGroundColor);
     }
+    if (i % 16 == 0)
+      RAPID_SERIAL_LOOP();
   }
 }
 
@@ -145,6 +140,8 @@ void GUI_ClearRect(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey)
     {
       LCD_WR_16BITS_DATA(backGroundColor);
     }
+    if (i % 16 == 0)
+      RAPID_SERIAL_LOOP();
   }
 }
 
@@ -172,6 +169,8 @@ void GUI_FillRectColor(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint1
     {
       LCD_WR_16BITS_DATA(color);
     }
+    if (i % 16 == 0)
+      RAPID_SERIAL_LOOP();
   }
 }
 
@@ -191,6 +190,8 @@ void GUI_FillRectArry(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint8_
       arry++;
       LCD_WR_16BITS_DATA(color);
     }
+    if (i % 16 == 0)
+      RAPID_SERIAL_LOOP();
   }
 }
 

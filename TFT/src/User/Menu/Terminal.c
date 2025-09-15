@@ -503,6 +503,7 @@ static inline void drawKeyboard(void)
       GUI_VLine(editorKeyRect[i + GKEY_BACK + 1].x1, editorAreaRect[1].y0, editorAreaRect[1].y1);
     }
 
+    RAPID_SERIAL_LOOP();
     // draw horizontal button borders
     for (int i = 0; i < (KB_ROW_COUNT - 1); i++)
     {
@@ -513,6 +514,7 @@ static inline void drawKeyboard(void)
   for (uint8_t i = GKEY_SEND; i < COUNT(gcodeKey123); i++)  // draw all the visible keys (text box keys are skipped)
   {
     keyboardDrawButton(i, false);
+    RAPID_SERIAL_LOOP();
   }
 }
 
@@ -825,6 +827,7 @@ static inline void terminalDrawMenu(void)
   for (uint8_t i = 0; i < COUNT(terminalKeyRect); i++)
   {
     terminalDrawButton(i, false);
+    RAPID_SERIAL_LOOP();
   }
 
   terminalDrawPageNumber();
