@@ -104,10 +104,9 @@ void GUI_FillRect(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey)
 {
   uint16_t i = 0, j = 0;
 
-  LCD_SetWindow(sx, sy, ex - 1, ey - 1);
-
   for (i = sx; i < ex; i++)
   {
+    LCD_SetWindow(sx, sy, ex - 1, ey - 1);
     for (j = sy; j < ey; j++)
     {
       LCD_WR_16BITS_DATA(foreGroundColor);
@@ -132,10 +131,9 @@ void GUI_ClearRect(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey)
 {
   uint16_t i = 0, j = 0;
 
-  LCD_SetWindow( sx, sy, ex - 1, ey - 1);
-
   for (i = sx; i < ex; i++)
   {
+    LCD_SetWindow( sx, sy, ex - 1, ey - 1);
     for (j = sy; j < ey; j++)
     {
       LCD_WR_16BITS_DATA(backGroundColor);
@@ -165,6 +163,7 @@ void GUI_FillRectColor(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint1
 
   for (i = sx; i < ex; i++)
   {
+    LCD_SetWindow(sx, sy, ex - 1, ey - 1);
     for (j = sy; j < ey; j++)
     {
       LCD_WR_16BITS_DATA(color);
@@ -178,10 +177,9 @@ void GUI_FillRectArry(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint8_
 {
   uint16_t i = 0, j = 0, color;
 
-  LCD_SetWindow(sx, sy, ex - 1, ey - 1);
-
   for (i = sx; i < ex; i++)
   {
+    LCD_SetWindow(sx, sy, ex - 1, ey - 1);
     for (j = sy; j < ey; j++)
     {
       color = *arry;
