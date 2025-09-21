@@ -828,7 +828,7 @@ void menuDrawTitle(void)
 
   // draw title
   uint16_t start_y = (TITLE_END_Y - BYTE_HEIGHT) / 2;
-  uint16_t start_x = 10;
+  uint16_t start_x = START_X;
   uint16_t end_x = drawTemperatureStatus();
 
   // NOTE: load the label just before displaying it. This is needed only in case a secondary language pack (.ini file) is used
@@ -841,12 +841,12 @@ void menuDrawTitle(void)
   if (titleString)
   {
     GUI_SetTextMode(GUI_TEXTMODE_NORMAL);
-    GUI_DispLenString(10, start_y, (uint8_t *) titleString, LCD_WIDTH - 20, true);
+    GUI_DispLenString(START_X, start_y, (uint8_t *) titleString, LCD_WIDTH - 2 * START_X, true);
 
     start_x += GUI_StrPixelWidth((uint8_t *) titleString);
 
-    if (start_x > LCD_WIDTH - 20)
-      start_x = LCD_WIDTH - 20;
+    if (start_x > LCD_WIDTH - 2 * START_X)
+      start_x = LCD_WIDTH - 2 * START_X;
   }
 
   GUI_ClearRect(start_x, start_y, end_x, start_y + BYTE_HEIGHT);
