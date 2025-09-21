@@ -24,7 +24,7 @@ static uint32_t nextToastTime = 0;        // time to change to next toast notifi
 // message notification variables
 static NOTIFICATION msglist[MAX_MSG_COUNT];    // message notification array
 static uint8_t nextMsgIndex = 0;               // next index to store new message
-static void (* notificationHandler)() = NULL;  // message notification handler
+// static void (* notificationHandler)() = NULL;  // message notification handler
 
 // add new message to toast notification queue
 void addToast(DIALOG_TYPE style, const char * text)
