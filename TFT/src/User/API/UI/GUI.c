@@ -104,14 +104,14 @@ void GUI_FillRect(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey)
 {
   uint16_t i = 0, j = 0;
 
-  for (i = sx; i < ex; i++)
+  for (j = sy; j < ey; j++)
   {
-    LCD_SetWindow(i, sy, i, ey - 1);
-    for (j = sy; j < ey; j++)
+    LCD_SetWindow(sx, j, ex - 1, j);
+    for (i = sx; i < ex; i++)
     {
       LCD_WR_16BITS_DATA(foreGroundColor);
     }
-    if (i % 16 == 0)
+    if (j % 64 == 0)
       RAPID_SERIAL_LOOP();
   }
 }
