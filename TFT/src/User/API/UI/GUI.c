@@ -2,6 +2,9 @@
 #include "includes.h"
 #include <math.h>
 
+#define NUMBER_OF_ROWS_BEFORE_YIELD  16  // yield to RAPID_SERIAL_LOOP after drawing a number of rows
+                                         // use a power of 2 for efficiency (2 4, 8, 16, 32, 64, 128, 256)
+
 static uint16_t foreGroundColor = WHITE;
 static uint16_t backGroundColor = BLACK;
 static GUI_TEXT_MODE guiTextMode = GUI_TEXTMODE_NORMAL;
@@ -95,25 +98,14 @@ void GUI_DrawPoint(uint16_t x, uint16_t y)
 }
 
 /** @brief Draw a filled rectangle
- * @param x1 - x point of top left corner
- * @param y1 - y point of top left corner
- * @param x2 - x point of bottom right corner
- * @param y2 - y point of bottom right corner
+ * @param x0 - x point of top left corner
+ * @param y0 - y point of top left corner
+ * @param x1 - x point of bottom right corner
+ * @param y1 - y point of bottom right corner
  */
-void GUI_FillRect(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey)
+void GUI_FillRect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
-  uint16_t i = 0, j = 0;
-
-  for (j = sy; j < ey; j++)
-  {
-    LCD_SetWindow(sx, j, ex - 1, j);
-    for (i = sx; i < ex; i++)
-    {
-      LCD_WR_16BITS_DATA(foreGroundColor);
-    }
-    if (j % 64 == 0)
-      RAPID_SERIAL_LOOP();
-  }
+  GUI_FillRectColor(x0, y0, x1, y1, foreGroundColor);
 }
 
 void GUI_FillPrect(const GUI_RECT * rect)
@@ -122,25 +114,14 @@ void GUI_FillPrect(const GUI_RECT * rect)
 }
 
 /** @brief Clear a rectangular area
- * @param x1 - x point of top left corner
- * @param y1 - y point of top left corner
- * @param x2 - x point of bottom right corner
- * @param y2 - y point of bottom right corner
+ * @param x0 - x point of top left corner
+ * @param y0 - y point of top left corner
+ * @param x1 - x point of bottom right corner
+ * @param y1 - y point of bottom right corner
  */
-void GUI_ClearRect(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey)
+void GUI_ClearRect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
-  uint16_t i = 0, j = 0;
-
-  for (i = sx; i < ex; i++)
-  {
-    LCD_SetWindow(i, sy, i, ey - 1);
-    for (j = sy; j < ey; j++)
-    {
-      LCD_WR_16BITS_DATA(backGroundColor);
-    }
-    if (i % 16 == 0)
-      RAPID_SERIAL_LOOP();
-  }
+  GUI_FillRectColor(x0, y0, x1, y1, backGroundColor);
 }
 
 void GUI_ClearPrect(const GUI_RECT * rect)
@@ -149,38 +130,35 @@ void GUI_ClearPrect(const GUI_RECT * rect)
 }
 
 /** @brief Draw a filled rectangle defined with color
- * @param x1 - x point of top left corner
- * @param y1 - y point of top left corner
- * @param x2 - x point of bottom right corner
- * @param y2 - y point of bottom right corner
+ * @param x0 - x point of top left corner
+ * @param y0 - y point of top left corner
+ * @param x1 - x point of bottom right corner
+ * @param y1 - y point of bottom right corner
  * @param color - color to be filled
  */
-void GUI_FillRectColor(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint16_t color)
+void GUI_FillRectColor(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
 {
-  uint16_t i = 0, j = 0;
-
-  LCD_SetWindow(sx, sy, ex - 1, ey - 1);
-
-  for (i = sx; i < ex; i++)
+  for (uint16_t y = y0; y < y1; y += NUMBER_OF_ROWS_BEFORE_YIELD)
   {
-    LCD_SetWindow(i, sy, i, ey - 1);
-    for (j = sy; j < ey; j++)
-    {
+    uint16_t y_end = (y + NUMBER_OF_ROWS_BEFORE_YIELD <= y1) ? y + NUMBER_OF_ROWS_BEFORE_YIELD - 1 : y1 - 1;
+    LCD_SetWindow(x0, y, x1 - 1, y_end);
+    uint32_t pixels = (uint32_t)(x1 - x0) * (y_end - y + 1);
+    
+    while (pixels--)
       LCD_WR_16BITS_DATA(color);
-    }
-    if (i % 16 == 0)
-      RAPID_SERIAL_LOOP();
+
+    RAPID_SERIAL_LOOP();
   }
 }
 
-void GUI_FillRectArry(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint8_t * arry)
+void GUI_FillRectArry(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint8_t * arry)
 {
-  uint16_t i = 0, j = 0, color;
+  uint16_t color;
 
-  for (i = sx; i < ex; i++)
+  LCD_SetWindow(x0, y0, x1 - 1, y1 - 1);
+  for (uint16_t x = x0; x < x1; x++)
   {
-    LCD_SetWindow(i, sy, i, ey - 1);
-    for (j = sy; j < ey; j++)
+    for (uint16_t y = y0; y < y1; y++)
     {
       color = *arry;
       arry++;
@@ -188,27 +166,25 @@ void GUI_FillRectArry(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey, uint8_
       arry++;
       LCD_WR_16BITS_DATA(color);
     }
-    if (i % 16 == 0)
-      RAPID_SERIAL_LOOP();
   }
 }
 
 /** @brief Draw a straight line
- * @param x1 - x point of line start
- * @param y1 - y point of line start
- * @param x2 - y point of line end
- * @param y2 - x point of line end
+ * @param x0 - x point of line start
+ * @param y0 - y point of line start
+ * @param x1 - y point of line end
+ * @param y1 - x point of line end
  */
-void GUI_DrawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
+void GUI_DrawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
   uint16_t t;
   int xerr = 0, yerr = 0, delta_x, delta_y, distance;
   int incx, incy, uRow, uCol;
 
-  delta_x = x2 - x1;
-  delta_y = y2 - y1;
-  uRow = x1;
-  uCol = y1;
+  delta_x = x1 - x0;
+  delta_y = y1 - y0;
+  uRow = x0;
+  uCol = y0;
 
   if (delta_x > 0)
   {
@@ -271,26 +247,26 @@ void GUI_DrawLine(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
  */
 void GUI_DrawAngleLine(uint16_t x, uint16_t y, uint16_t r, int16_t angle)
 {
-  uint16_t ex,ey;
+  uint16_t x1, y1;
   float a = angle * 3.1415926f / 180;
 
-  ex = x + cos(a) * r;
-  ey = y - sin(a) * r;
-  GUI_DrawLine(x, y, ex, ey);
+  x1 = x + cos(a) * r;
+  y1 = y - sin(a) * r;
+  GUI_DrawLine(x, y, x1, y1);
 }
 
 /** @brief Draw a horiontal line
- * @param x1 - x point of line start
+ * @param x0 - x point of line start
  * @param y - y point of line start
- * @param x2 - x point of line end
+ * @param x1 - x point of line end
  */
-void GUI_HLine(uint16_t x1, uint16_t y, uint16_t x2)
+void GUI_HLine(uint16_t x0, uint16_t y, uint16_t x1)
 {
   uint16_t i = 0;
 
-  LCD_SetWindow(x1, y, x2 - 1, y);
+  LCD_SetWindow(x0, y, x1 - 1, y);
 
-  for (i = x1; i < x2; i++)
+  for (i = x0; i < x1; i++)
   {
     LCD_WR_16BITS_DATA(foreGroundColor);
   }
@@ -298,33 +274,33 @@ void GUI_HLine(uint16_t x1, uint16_t y, uint16_t x2)
 
 /** @brief Draw a vertical line
  * @param x - x point of line start
- * @param y1 - y point of line start
- * @param y2 - y point of line end
+ * @param y0 - y point of line start
+ * @param y1 - y point of line end
  */
-void GUI_VLine(uint16_t x, uint16_t y1, uint16_t y2)
+void GUI_VLine(uint16_t x, uint16_t y0, uint16_t y1)
 {
   uint16_t i = 0;
 
-  LCD_SetWindow(x, y1, x, y2 - 1);
+  LCD_SetWindow(x, y0, x, y1 - 1);
 
-  for (i = y1; i < y2; i++)
+  for (i = y0; i < y1; i++)
   {
     LCD_WR_16BITS_DATA(foreGroundColor);
   }
 }
 
 /** @brief Draw a rectangle
- * @param x1 - x point of top left corner
- * @param y1 - y point of top left corner
- * @param x2 - x point of bottom right corner
- * @param y2 - y point of bottom right corner
+ * @param x0 - x point of top left corner
+ * @param y0 - y point of top left corner
+ * @param x1 - x point of bottom right corner
+ * @param y1 - y point of bottom right corner
  */
-void GUI_DrawRect(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
+void GUI_DrawRect(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
 {
-  GUI_HLine(x1, y1, x2);
-  GUI_HLine(x1, y2 - 1, x2);
-  GUI_VLine(x1, y1, y2);
-  GUI_VLine(x2 - 1, y1, y2);
+  GUI_HLine(x0, y0, x1);
+  GUI_HLine(x0, y1 - 1, x1);
+  GUI_VLine(x0, y0, y1);
+  GUI_VLine(x1 - 1, y0, y1);
 }
 
 /** @brief Draw a rectangle with predetermined dimensions
@@ -568,70 +544,70 @@ void GUI_FillCircle(uint16_t x0, uint16_t y0, uint16_t r)
 }
 
 // get the text starting point on screen based on rectangle edges and desired display position
-GUI_POINT getTextStartPoint(uint16_t sx, uint16_t sy, uint16_t ex, uint16_t ey,ALIGN_POSITION pos, const char * textchar)
+GUI_POINT getTextStartPoint(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, ALIGN_POSITION pos, const char * textchar)
 {
-  GUI_POINT point_item = {sx, sy};
-  uint16_t w = ex - sx;
-  uint16_t h = ey - sy;
+  GUI_POINT point_item = {x0, y0};
+  uint16_t w = x1 - x0;
+  uint16_t h = y1 - y0;
   size_t charIcon_w = strlen(textchar) / 3 * BYTE_HEIGHT;
 
   switch (pos)
   {
     case TOP_LEFT:
-      point_item.x = sx + 1;
-      point_item.y = sy + 1;
+      point_item.x = x0 + 1;
+      point_item.y = y0 + 1;
       break;
 
     case TOP:
-      point_item.x = (sx + (w - charIcon_w) / 2);
-      point_item.y = sy + 1;
+      point_item.x = (x0 + (w - charIcon_w) / 2);
+      point_item.y = y0 + 1;
       break;
 
     case TOP_RIGHT:
-      point_item.x = ex - charIcon_w - 1;
-      point_item.y = sy + 1;
+      point_item.x = x1 - charIcon_w - 1;
+      point_item.y = y0 + 1;
       break;
 
     case LEFT:
-      point_item.x = sx + 1;
-      point_item.y = (sy + (h - BYTE_HEIGHT) / 2);
+      point_item.x = x0 + 1;
+      point_item.y = (y0 + (h - BYTE_HEIGHT) / 2);
       break;
 
     case CENTER:
-      point_item.x = (sx + (w - charIcon_w) / 2);
-      point_item.y = (sy + (h - BYTE_HEIGHT) / 2);
+      point_item.x = (x0 + (w - charIcon_w) / 2);
+      point_item.y = (y0 + (h - BYTE_HEIGHT) / 2);
       break;
 
     case RIGHT:
-      point_item.x = ex - charIcon_w - 1;
-      point_item.y = (sy + (h - BYTE_HEIGHT) / 2);
+      point_item.x = x1 - charIcon_w - 1;
+      point_item.y = (y0 + (h - BYTE_HEIGHT) / 2);
       break;
 
     case BOTTOM_LEFT:
-      point_item.x = sx + 1;
-      point_item.y = sy + h - BYTE_HEIGHT - 1;
+      point_item.x = x0 + 1;
+      point_item.y = y0 + h - BYTE_HEIGHT - 1;
       break;
 
     case BOTTOM:
-      point_item.x = (sx + (w - charIcon_w) / 2);
-      point_item.y = sy + h - BYTE_HEIGHT - 1;
+      point_item.x = (x0 + (w - charIcon_w) / 2);
+      point_item.y = y0 + h - BYTE_HEIGHT - 1;
       break;
 
     case BOTTOM_RIGHT:
-      point_item.x = sx + w - charIcon_w - 1;
-      point_item.y = sy + h - BYTE_HEIGHT - 1;
+      point_item.x = x0 + w - charIcon_w - 1;
+      point_item.y = y0 + h - BYTE_HEIGHT - 1;
       break;
 
     default:
-      point_item.x = sx + 1;
-      point_item.y = sy + 1;
+      point_item.x = x0 + 1;
+      point_item.y = y0 + 1;
       break;
   }
 
   return point_item;
 }
 
-void GUI_DispOne(int16_t sx, int16_t sy, const CHAR_INFO * pInfo)
+void GUI_DispOne(int16_t x0, int16_t y0, const CHAR_INFO * pInfo)
 {
   if (pInfo->bytes == 0)
     return;
@@ -665,12 +641,12 @@ void GUI_DispOne(int16_t sx, int16_t sy, const CHAR_INFO * pInfo)
       for (y = 0; y < h; y++)
       {
         if (temp & pixel)  // draw text pixel
-          GUI_DrawPixel(sx, sy + y, foreGroundColor);
+          GUI_DrawPixel(x0, y0 + y, foreGroundColor);
 
         temp <<= 1;
       }
 
-      sx++;
+      x0++;
     }
   }
   else  // if GUI_TEXTMODE_NORMAL or GUI_TEXTMODE_ON_ICON
@@ -686,17 +662,17 @@ void GUI_DispOne(int16_t sx, int16_t sy, const CHAR_INFO * pInfo)
 
     if (pixel_limit_flag == 1)
     {
-      if (sx < pixel_limit_rect.x0)
-        limit.x0 = pixel_limit_rect.x0 - sx;
+      if (x0 < pixel_limit_rect.x0)
+        limit.x0 = pixel_limit_rect.x0 - x0;
 
-      if (sx + w >= pixel_limit_rect.x1)
-        limit.x1 = sx + w - pixel_limit_rect.x1;
+      if (x0 + w >= pixel_limit_rect.x1)
+        limit.x1 = x0 + w - pixel_limit_rect.x1;
 
-      if (sy < pixel_limit_rect.y0)
-        limit.y0 = pixel_limit_rect.y0 - sy;
+      if (y0 < pixel_limit_rect.y0)
+        limit.y0 = pixel_limit_rect.y0 - y0;
 
-      if (sy + h >= pixel_limit_rect.y1)
-        limit.y1 = sy + h - pixel_limit_rect.y1;
+      if (y0 + h >= pixel_limit_rect.y1)
+        limit.y1 = y0 + h - pixel_limit_rect.y1;
     }
 
     for (x = 0; x < w; x++)
@@ -718,7 +694,7 @@ void GUI_DispOne(int16_t sx, int16_t sy, const CHAR_INFO * pInfo)
       }
     }
 
-    lcd_buffer_display(sx, sy, w, h, buf, &limit);
+    lcd_buffer_display(x0, y0, w, h, buf, &limit);
   }
 }
 
@@ -788,11 +764,11 @@ void _GUI_DispStringCenter(int16_t x, int16_t y, const uint8_t * p)
   _GUI_DispString(x, y, p);
 }
 
-void _GUI_DispStringInRect(int16_t sx, int16_t sy, int16_t ex, int16_t ey, const uint8_t * p)
+void _GUI_DispStringInRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, const uint8_t * p)
 {
   uint16_t stringlen = GUI_StrPixelWidth(p);
-  uint16_t width = ex - sx;
-  uint16_t height = ey - sy;
+  uint16_t width = x1 - x0;
+  uint16_t height = y1 - y0;
   uint8_t nline = (stringlen + width - 1) / width;
 
   if (nline > height / BYTE_HEIGHT)
@@ -800,7 +776,7 @@ void _GUI_DispStringInRect(int16_t sx, int16_t sy, int16_t ex, int16_t ey, const
 
   uint16_t x_offset = stringlen >= width ? 0 : (width - stringlen) >> 1;
   uint16_t y_offset = (nline * BYTE_HEIGHT) >= height ? 0 : ((height - (nline * BYTE_HEIGHT)) >> 1);
-  uint16_t x = sx + x_offset, y = sy + y_offset;
+  uint16_t x = x0 + x_offset, y = y0 + y_offset;
 
   for (uint8_t i = 0; i < nline; i++)
   {
@@ -855,13 +831,13 @@ static GUI_POINT GUI_DisplayWordInPrect(const GUI_RECT * rect, GUI_POINT cursor,
   return cursor;
 }
 
-void _GUI_DispStringInRectEOL(int16_t sx, int16_t sy, int16_t ex, int16_t ey, const uint8_t * p)
+void _GUI_DispStringInRectEOL(int16_t x0, int16_t y0, int16_t x1, int16_t y1, const uint8_t * p)
 {
   if (p == NULL || *p == 0)
     return;
 
-  GUI_RECT rect = (GUI_RECT){sx, sy, ex, ey};
-  GUI_POINT cursor = (GUI_POINT){sx, sy};
+  GUI_RECT rect = (GUI_RECT){x0, y0, x1, y1};
+  GUI_POINT cursor = (GUI_POINT){x0, y0};
   uint16_t bufLength = 0;
   char buf[100];
 
@@ -954,9 +930,9 @@ void _GUI_DispLabelCenter(int16_t x, int16_t y, uint16_t index)
   _GUI_DispStringCenter(x, y, (uint8_t *) textSelect(index));
 }
 
-void _GUI_DispLabelInRect(int16_t sx, int16_t sy, int16_t ex, int16_t ey, uint16_t index)
+void _GUI_DispLabelInRect(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t index)
 {
-  _GUI_DispStringInRect(sx, sy, ex, ey, (uint8_t *) textSelect(index));
+  _GUI_DispStringInRect(x0, y0, x1, y1, (uint8_t *) textSelect(index));
 }
 
 void _GUI_DispLabelInPrect(const GUI_RECT * rect, uint16_t index)
@@ -964,9 +940,9 @@ void _GUI_DispLabelInPrect(const GUI_RECT * rect, uint16_t index)
   _GUI_DispStringInPrect(rect, (uint8_t *) textSelect(index));
 }
 
-void _GUI_DispLabelInRectEOL(int16_t sx, int16_t sy, int16_t ex, int16_t ey, uint16_t index)
+void _GUI_DispLabelInRectEOL(int16_t x0, int16_t y0, int16_t x1, int16_t y1, uint16_t index)
 {
-  _GUI_DispStringInRectEOL(sx, sy, ex, ey, (uint8_t *) textSelect(index));
+  _GUI_DispStringInRectEOL(x0, y0, x1, y1, (uint8_t *) textSelect(index));
 }
 
 void _GUI_DispLabelInPrectEOL(const GUI_RECT * rect, uint16_t index)
@@ -1116,9 +1092,9 @@ void RADIO_Create(RADIO * radio)
     else
       GUI_SetColor(RADIO_IDLE_COLOR);
 
-    GUI_FillCircle(radio->sx + BYTE_HEIGHT / 2, i * radio->distance + radio->sy + BYTE_HEIGHT / 2, BYTE_HEIGHT / 8);
-    GUI_DrawCircle(radio->sx + BYTE_HEIGHT / 2, i * radio->distance + radio->sy + BYTE_HEIGHT / 2, BYTE_HEIGHT / 4);
-    GUI_DispString(radio->sx + BYTE_HEIGHT,     i * radio->distance + radio->sy,                   radio->context[i]);
+    GUI_FillCircle(radio->x0 + BYTE_HEIGHT / 2, i * radio->distance + radio->y0 + BYTE_HEIGHT / 2, BYTE_HEIGHT / 8);
+    GUI_DrawCircle(radio->x0 + BYTE_HEIGHT / 2, i * radio->distance + radio->y0 + BYTE_HEIGHT / 2, BYTE_HEIGHT / 4);
+    GUI_DispString(radio->x0 + BYTE_HEIGHT,     i * radio->distance + radio->y0,                   radio->context[i]);
   }
 
   GUI_SetColor(tmp);
@@ -1144,9 +1120,9 @@ void RADIO_Select(RADIO * radio, uint8_t select)
       GUI_SetColor(RADIO_SELECTED_COLOR);
     }
 
-    GUI_FillCircle(radio->sx + BYTE_HEIGHT / 2, radio->select * radio->distance + radio->sy + BYTE_HEIGHT / 2, BYTE_HEIGHT / 8);
-    GUI_DrawCircle(radio->sx + BYTE_HEIGHT / 2, radio->select * radio->distance + radio->sy + BYTE_HEIGHT / 2, BYTE_HEIGHT / 4);
-    GUI_DispString(radio->sx + BYTE_HEIGHT,     radio->select * radio->distance + radio->sy,                   radio->context[radio->select]);
+    GUI_FillCircle(radio->x0 + BYTE_HEIGHT / 2, radio->select * radio->distance + radio->y0 + BYTE_HEIGHT / 2, BYTE_HEIGHT / 8);
+    GUI_DrawCircle(radio->x0 + BYTE_HEIGHT / 2, radio->select * radio->distance + radio->y0 + BYTE_HEIGHT / 2, BYTE_HEIGHT / 4);
+    GUI_DispString(radio->x0 + BYTE_HEIGHT,     radio->select * radio->distance + radio->y0,                   radio->context[radio->select]);
   }
 
   GUI_SetColor(tmp);
@@ -1257,10 +1233,10 @@ void GUI_DrawButton(const BUTTON * button, uint8_t pressed)
 {
   const uint16_t radius = button->radius;
   const uint16_t lineWidth = button->lineWidth;
-  const int16_t sx = button->rect.x0;
-  const int16_t sy = button->rect.y0;
-  const int16_t ex = button->rect.x1;
-  const int16_t ey = button->rect.y1;
+  const int16_t x0 = button->rect.x0;
+  const int16_t y0 = button->rect.y0;
+  const int16_t x1 = button->rect.x1;
+  const int16_t y1 = button->rect.y1;
   const uint16_t nowBackColor = GUI_GetBkColor();
   const uint16_t nowFontColor = GUI_GetColor();
   const GUI_TEXT_MODE nowTextMode = GUI_GetTextMode();
@@ -1270,27 +1246,27 @@ void GUI_DrawButton(const BUTTON * button, uint8_t pressed)
   const uint16_t fontColor = pressed ? button->pFontColor : button->fontColor;
 
   GUI_SetColor(lineColor);
-  GUI_FillCircle(sx + radius,     sy + radius,     radius);
-  GUI_FillCircle(ex - radius - 1, sy + radius,     radius);
-  GUI_FillCircle(sx + radius,     ey - radius - 1, radius);
-  GUI_FillCircle(ex - radius - 1, ey - radius - 1, radius);
+  GUI_FillCircle(x0 + radius,     y0 + radius,     radius);
+  GUI_FillCircle(x1 - radius - 1, y0 + radius,     radius);
+  GUI_FillCircle(x0 + radius,     y1 - radius - 1, radius);
+  GUI_FillCircle(x1 - radius - 1, y1 - radius - 1, radius);
 
   for (uint16_t i = 0; i < lineWidth; i++)
   {
-    GUI_HLine(sx + radius, sy + i,      ex - radius);
-    GUI_HLine(sx + radius, ey - 1 - i,  ex - radius);
-    GUI_VLine(sx + i,      sy + radius, ey - radius);
-    GUI_VLine(ex - 1 - i,  sy + radius, ey - radius);
+    GUI_HLine(x0 + radius, y0 + i,      x1 - radius);
+    GUI_HLine(x0 + radius, y1 - 1 - i,  x1 - radius);
+    GUI_VLine(x0 + i,      y0 + radius, y1 - radius);
+    GUI_VLine(x1 - 1 - i,  y0 + radius, y1 - radius);
   }
 
   GUI_SetColor(backColor);
-  GUI_FillCircle(sx + radius,     sy + radius,     radius - lineWidth);
-  GUI_FillCircle(ex - radius - 1, sy + radius,     radius - lineWidth);
-  GUI_FillCircle(sx + radius,     ey - radius - 1, radius - lineWidth);
-  GUI_FillCircle(ex - radius - 1, ey - radius - 1, radius - lineWidth);
-  GUI_FillRect(sx + radius,    sy + lineWidth,          ex - radius,    sy + lineWidth + radius);
-  GUI_FillRect(sx + lineWidth, sy + lineWidth + radius, ex - lineWidth, ey - lineWidth - radius);
-  GUI_FillRect(sx + radius,    ey - lineWidth - radius, ex - radius,    ey - lineWidth);
+  GUI_FillCircle(x0 + radius,     y0 + radius,     radius - lineWidth);
+  GUI_FillCircle(x1 - radius - 1, y0 + radius,     radius - lineWidth);
+  GUI_FillCircle(x0 + radius,     y1 - radius - 1, radius - lineWidth);
+  GUI_FillCircle(x1 - radius - 1, y1 - radius - 1, radius - lineWidth);
+  GUI_FillRect(x0 + radius,    y0 + lineWidth,          x1 - radius,    y0 + lineWidth + radius);
+  GUI_FillRect(x0 + lineWidth, y0 + lineWidth + radius, x1 - lineWidth, y1 - lineWidth - radius);
+  GUI_FillRect(x0 + radius,    y1 - lineWidth - radius, x1 - radius,    y1 - lineWidth);
 
   GUI_SetColor(fontColor);
   GUI_SetTextMode(GUI_TEXTMODE_TRANS);

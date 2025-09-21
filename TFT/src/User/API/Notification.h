@@ -37,7 +37,7 @@ void replayNotification(uint8_t index);
 NOTIFICATION * getNotification(uint8_t index);
 bool hasNotification(void);
 void clearNotification(void);
-void setNotificationHandler(void (* handler)(void));
+//void setNotificationHandler(void (* handler)(void)); // not needed
 void titleBarPress(void);
 
 #ifdef __cplusplus
