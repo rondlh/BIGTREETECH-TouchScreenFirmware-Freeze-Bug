@@ -75,6 +75,10 @@
   #define LCD_DATA_16BIT 1
 #endif
 
+// USART6 pins for STM32F407VET6
+#define USART6_TX_PIN PC6
+#define USART6_RX_PIN PC7
+
 // SERIAL_PORT:   communicating with host (Marlin, RRF etc.)
 // SERIAL_PORT_X: communicating with other controllers (OctoPrint, ESP3D, other UART Touch Screen etc.)
 #ifndef SERIAL_PORT
