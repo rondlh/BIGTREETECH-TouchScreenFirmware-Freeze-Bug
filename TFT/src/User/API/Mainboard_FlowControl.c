@@ -56,6 +56,16 @@ void loopBackEnd(void)
     USB_LoopProcess();
   #endif
 
+  // check changes in encoder steps
+  #if LCD_ENCODER_SUPPORT
+    #ifdef HAS_EMULATOR
+      if (MENU_IS_NOT(menuMarlinMode))
+    #endif
+    {
+      LCD_Enc_CheckSteps();
+    }
+  #endif
+
   if ((priorityCounter.be++ % BE_PRIORITY_DIVIDER) != 0)  // a divider value of 16 -> run 6% of the time only
     return;
 
@@ -96,16 +106,6 @@ void loopBackEnd(void)
   // check filament runout status
   #ifdef FIL_RUNOUT_PIN
     FIL_BE_CheckRunout();
-  #endif
-
-  // check changes in encoder steps
-  #if LCD_ENCODER_SUPPORT
-    #ifdef HAS_EMULATOR
-      if (MENU_IS_NOT(menuMarlinMode))
-    #endif
-    {
-      LCD_Enc_CheckSteps();
-    }
   #endif
 
   // check mode switching
