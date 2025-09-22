@@ -62,6 +62,7 @@ void menuExtrude(void)
   while (MENU_IS(menuExtrude))
   {
     key_num = menuKeyGetValue();
+    bool longPressed = menuKeyIsLongPress();
 
     switch (key_num)
     {
@@ -84,25 +85,28 @@ void menuExtrude(void)
       case KEY_ICON_4:
         if (infoSettings.ext_count > 1)
         {
-          curExtruder_index = (curExtruder_index + 1) % infoSettings.ext_count;
-
-          extruderReDraw(curExtruder_index, extrAmount, true);
-        }
-        else
-        {
-          heatSetCurrentIndex(curExtruder_index);  // preselect current nozzle for "Heat" menu
-
-          OPEN_MENU(menuHeat);
-          menuHeat();  // call from here to retain E axis parameters
-
-          if (MENU_IS(menuExtrude))  // user exited from heating menu by short pressing "Back"
+          if (longPressed) // IRON, jump to heating 
           {
-            menuDrawPage(&extrudeItems);
-            extruderReDraw(curExtruder_index, extrAmount, true);
+            heatSetCurrentIndex(curExtruder_index);  // preselect current nozzle for "Heat" menu
+
+            OPEN_MENU(menuHeat);
+            menuHeat();  // call from here to retain E axis parameters
+
+            if (MENU_IS(menuExtrude))  // user exited from heating menu by short pressing "Back"
+            {
+              menuDrawPage(&extrudeItems);
+              extruderReDraw(curExtruder_index, extrAmount, true);
+            }
+            else  // user exited from heating menu by long pressing "Back"
+            {
+              eAxisBackup.handled = false;  // exiting from Extrude menu, trigger E axis parameters restore
+            }
           }
-          else  // user exited from heating menu by long pressing "Back"
+          else
           {
-            eAxisBackup.handled = false;  // exiting from Extrude menu, trigger E axis parameters restore
+            curExtruder_index = (curExtruder_index + 1) % infoSettings.ext_count;
+
+            extruderReDraw(curExtruder_index, extrAmount, true);
           }
         }
         break;

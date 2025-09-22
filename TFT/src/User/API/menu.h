@@ -198,6 +198,7 @@ void displayExhibitHeader(const char * titleStr, const char * unitStr);
 void displayExhibitValue(const char * valueStr);
 
 KEY_VALUES menuKeyGetValue(void);
+bool menuKeyIsLongPress(void);
 
 // smart home
 #ifdef SMART_HOME

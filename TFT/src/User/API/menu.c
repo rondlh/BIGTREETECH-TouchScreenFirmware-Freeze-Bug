@@ -4,6 +4,7 @@
 #include "Notification.h"
 
 #define STATUS_BAR_REFRESH_TIME 2000  // refresh time in ms
+uint8_t longPressed = 0;
 
 const GUI_RECT exhibitRect = {
   #ifdef PORTRAIT_MODE
@@ -1090,72 +1091,75 @@ void displayExhibitValue(const char * valueStr)
   setFontSize(FONT_SIZE_NORMAL);
 }
 
+// the menus can check if the press was a long press
+bool menuKeyIsLongPress(void)
+{
+  return (longPressed);
+}
+
 // get button value
 KEY_VALUES menuKeyGetValue(void)
 {
   KEY_VALUES tempkey = KEY_IDLE;
 
-  if (tempkey == KEY_IDLE)
+  switch (menuType)
   {
-    switch (menuType)
+    case MENU_TYPE_ICON:
     {
-      case MENU_TYPE_ICON:
+      if (MENU_IS(menuStatus))
       {
-        if (MENU_IS(menuStatus))
-        {
-          tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keySS), rect_of_keySS);
-        }
-        else if (MENU_IS(menuPrinting))
-        {
-          if (isPrinting() || isPrintingFromOnboard())
-            tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keyPS), rect_of_keyPS);
-          else
-            tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keyPS_end), rect_of_keyPS_end);
-
-          if (tempkey == (KEY_VALUES)PS_KEY_TITLEBAR)
-            tempkey = KEY_TITLEBAR;
-        }
-        else if ((MENU_IS(menuHeat)) ||
-                 (MENU_IS(menuLoadUnload)) ||
-                 (MENU_IS(menuMPC)) ||
-                 (MENU_IS(menuPid)) ||
-                 (MENU_IS(menuTuneExtruder)) ||
-                 (MENU_IS(menuFan)) ||
-                 (MENU_IS(menuExtrude)) ||
-                 (MENU_IS(menuSpeed)) ||
-                 (MENU_IS(menuZOffset)) ||
-                 (MENU_IS(menuMBL)) ||
-                 (MENU_IS(menuBabystep)) ||
-                 (MENU_IS(menuMeshEditor)))
-        {
-          tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keysIN), rect_of_keysIN);
-        }
-        else
-        {
-          tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_key), rect_of_key);
-        }
-        break;
+        tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keySS), rect_of_keySS);
       }
-
-      case MENU_TYPE_LISTVIEW:
-        tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keyListView), rect_of_keyListView);
-
-        if (tempkey == ITEM_PER_PAGE)
-          tempkey = KEY_TITLEBAR;
-        break;
-
-      case MENU_TYPE_OTHER:
-        if ((KEY_VALUES)KEY_GetValue(1, rect_of_titleBar) == 0)
-          tempkey = KEY_TITLEBAR;
+      else if (MENU_IS(menuPrinting))
+      {
+        if (isPrinting() || isPrintingFromOnboard())
+          tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keyPS), rect_of_keyPS);
         else
-          tempkey = (KEY_VALUES)KEY_GetValue(curRectCount, curRect);
-        break;
+          tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keyPS_end), rect_of_keyPS_end);
 
-      case MENU_TYPE_FULLSCREEN:
-      default:
-        tempkey = (KEY_VALUES)KEY_GetValue(curRectCount, curRect);
-        break;
+        if (tempkey == (KEY_VALUES)PS_KEY_TITLEBAR)
+          tempkey = KEY_TITLEBAR;
+      }
+      else if ((MENU_IS(menuHeat)) ||
+               (MENU_IS(menuLoadUnload)) ||
+               (MENU_IS(menuMPC)) ||
+               (MENU_IS(menuPid)) ||
+               (MENU_IS(menuTuneExtruder)) ||
+               (MENU_IS(menuFan)) ||
+               (MENU_IS(menuExtrude)) ||
+               (MENU_IS(menuSpeed)) ||
+               (MENU_IS(menuZOffset)) ||
+               (MENU_IS(menuMBL)) ||
+               (MENU_IS(menuBabystep)) ||
+               (MENU_IS(menuMeshEditor)))
+      {
+        tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keysIN), rect_of_keysIN);
+      }
+      else
+      {
+        tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_key), rect_of_key);
+      }
+      break;
     }
+
+    case MENU_TYPE_LISTVIEW:
+      tempkey = (KEY_VALUES)KEY_GetValue(COUNT(rect_of_keyListView), rect_of_keyListView);
+
+      if (tempkey == ITEM_PER_PAGE)
+        tempkey = KEY_TITLEBAR;
+      break;
+
+    case MENU_TYPE_OTHER:
+      if ((KEY_VALUES)KEY_GetValue(1, rect_of_titleBar) == 0)
+        tempkey = KEY_TITLEBAR;
+      else
+        tempkey = (KEY_VALUES)KEY_GetValue(curRectCount, curRect);
+      break;
+
+    case MENU_TYPE_FULLSCREEN:
+    default:
+      tempkey = (KEY_VALUES)KEY_GetValue(curRectCount, curRect);
+      break;
   }
 
   if (menuType != MENU_TYPE_FULLSCREEN && tempkey == KEY_TITLEBAR)
@@ -1170,56 +1174,44 @@ KEY_VALUES menuKeyGetValue(void)
       tempkey = LCD_Enc_KeyValue();
   #endif
 
-  return tempkey;
-}
-
-// smart home (long press on back button to go to status screen)
-#ifdef SMART_HOME
-
-void loopCheckBackPress(void)
-{
-  static bool longPress = false;
-
   #ifdef HAS_EMULATOR
     static bool backHeld = false;
   #endif
 
+  if (tempkey != KEY_IDLE)
+    lastKeyTime = OS_GetTimeMs();
+
   if (!TS_IsPressed())
   {
-    longPress = false;
+    longPressed >>= 1;// 2-->1-->0, don't immediately cancel longPressed, delay by 1 cycle
 
     #ifdef HAS_EMULATOR
       backHeld = false;
     #else
       Touch_Enc_ReadPen(0);  // reset TSC press timer
     #endif
-
-    return;
+    return tempkey;
   }
 
-  if (isPrinting())  // no jump to main menu while printing
-    return;
-
-  if (getMenuType() != MENU_TYPE_ICON)
-    return;
-
-  if ((infoMenu.cur == 0) || (MENU_IS(menuMode)))
-    return;
+  if (isPrinting() ||                     // no jump to "main menu" while printing
+      getMenuType() != MENU_TYPE_ICON ||  // only jump if in a "icon menu"
+      infoMenu.cur == 0 ||                // already in "main menu"
+      MENU_IS(menuMode))                  // no jump from "mode switching menu"
+    return tempkey;
 
   #ifdef HAS_EMULATOR
-    if (backHeld == true)  // prevent mode selection or screenshot if Back button is held
+    if (backHeld)  // prevent mode selection or screenshot if Back button is held
     {
       backHeld = Touch_Enc_ReadPen(0);
 
-      return;
+      return tempkey;
     }
   #endif
 
-  if (longPress == false && Touch_Enc_ReadPen(LONG_TOUCH))  // check if longpress already handled and check if TSC is pressed and held
+  if (!longPressed && Touch_Enc_ReadPen(LONG_TOUCH))  // detect long press
   {
     KEY_VALUES tempKey = KEY_IDLE;
 
-    longPress = true;
     TS_Sound = false;
 
     if (MENU_IS(menuPrinting))
@@ -1231,16 +1223,23 @@ void loopCheckBackPress(void)
 
     if (tempKey != KEY_IDLE && getCurMenuItems()->items[tempKey].label.index == LABEL_BACK)  // check if Back button is held
     {
+      longPressed = 2;  // enable longPressed status for at least 2 cycles
       BUZZER_PLAY(SOUND_OK);
 
-      #ifdef HAS_EMULATOR
-        backHeld = true;
-      #endif
+      if (getCurMenuItems()->items[tempKey].label.index == LABEL_BACK)  // check if Back button is held
+      {
+        #ifdef HAS_EMULATOR
+          backHeld = true;
+        #endif
 
-      infoMenu.menu[1] = infoMenu.menu[infoMenu.cur];  // prepare menu tree for jump to 0
-      infoMenu.cur = 1;
+        #ifdef SMART_HOME
+          BUZZER_PLAY(SOUND_OK);  // sound to indicate back to root menu is triggered
+          infoMenu.menu[1] = infoMenu.menu[infoMenu.cur];  // prepare menu tree for jump to 0
+          infoMenu.cur = 1;
+        #endif  // SMART_HOME
+      }
     }
   }
-}
 
-#endif  // SMART_HOME
+  return tempkey;
+}
