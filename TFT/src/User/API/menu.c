@@ -1094,7 +1094,7 @@ void displayExhibitValue(const char * valueStr)
 // the menus can check if the press was a long press
 bool menuKeyIsLongPress(void)
 {
-  return (longPressed);
+  return (longPressed && !TS_IsPressed());
 }
 
 // get button value
@@ -1183,7 +1183,7 @@ KEY_VALUES menuKeyGetValue(void)
 
   if (!TS_IsPressed())
   {
-    longPressed >>= 1;// 2-->1-->0, don't immediately cancel longPressed, delay by 1 cycle
+    longPressed >>= 1;// 4-->2-->1-->0, keep longPressed for some time/cycles
 
     #ifdef HAS_EMULATOR
       backHeld = false;
@@ -1223,7 +1223,7 @@ KEY_VALUES menuKeyGetValue(void)
 
     if (tempKey != KEY_IDLE && getCurMenuItems()->items[tempKey].label.index == LABEL_BACK)  // check if Back button is held
     {
-      longPressed = 2;  // enable longPressed status for at least 2 cycles
+      longPressed = 4;  // enable longPressed status for some time/cycles
       BUZZER_PLAY(SOUND_OK);
 
       if (getCurMenuItems()->items[tempKey].label.index == LABEL_BACK)  // check if Back button is held
