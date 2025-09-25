@@ -146,7 +146,7 @@
 // LCD Encoder pins
 // It can be added using available pins (PB0, PB1, PB4, PB5). Switch encoder/button to ground
 // Make sure to remap FIL_RUNOUT_PIN and PS_ON_PIN to unused pins to avoid conflicts (E.e. PE0, PE1, PE4, PE5)
-// Mostly usefull for Marlin mode, which is not available because there are not EXP1/2 connectors on the display
+// Mostly usefull for Marlin mode, which is not available because there are no EXP1/2 connectors on the display
 #ifndef LCD_ENCA_PIN
   #define LCD_ENCA_PIN PB0
   #define LCD_ENCB_PIN PB1
