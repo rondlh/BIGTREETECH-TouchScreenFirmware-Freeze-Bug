@@ -35,6 +35,8 @@ void resetPendingQueries(void)
 // non-UI background loop tasks
 void loopBackEnd(void)
 {
+  if (!infoMenu.menu[infoMenu.cur])
+    return;
   UPD_SCAN_RATE();  // debug monitoring KPI
 
   // handle a print from TFT media, if any
