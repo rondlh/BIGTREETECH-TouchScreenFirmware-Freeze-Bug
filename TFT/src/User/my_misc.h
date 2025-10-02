@@ -74,6 +74,7 @@ uint8_t inRange(int cur, int tag , int range);
 long map(long x, long in_min, long in_max, long out_min, long out_max);
 
 uint32_t calculateCRC16(const uint8_t * data, uint32_t length);  // calculate CRC16 checksum
+uint32_t calculateCRC32(const uint8_t * data, uint32_t length);  // calculate CRC32 checksum
 
 uint8_t string_2_uint8(const uint8_t * str);                                // string convert to uint8, MSB ("2C" to 0x2C)
 uint8_t * uint8_2_string(uint8_t num, uint8_t * str);                       // uint8 convert to string, MSB (0x2C to "2C")

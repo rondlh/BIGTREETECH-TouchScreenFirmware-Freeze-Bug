@@ -6,8 +6,9 @@ extern "C" {
 #endif
 
 #include <stdbool.h>
+#define EMPTY_FLASH_WORD 0xFFFFFFFF
 
-#define PARA_SIZE (128 * 3)  // max size of settings buffer to read/write
+#define PARA_SIZE (128 * 2)  // max size of settings buffer to read/write
 
 void readStoredPara(void);  // read settings parameter if exist, or reset settings parameter
 void storePara(void);

@@ -4,7 +4,8 @@
 #include "printf/printf.h"
 #include <stddef.h>
 
-#define CRC_POLY 0xA001
+#define CRC16_POLY_REVERSED     0xA001
+#define CRC32_POLY_REVERSED 0xEDB88320
 
 uint8_t inRange(int cur, int tag , int range)
 {
@@ -32,13 +33,25 @@ uint32_t calculateCRC16(const uint8_t * data, uint32_t length)
     for (uint8_t j = 0; j < 8; j++)
     {
       if (crc & 1)
-        crc = (crc >> 1) ^ CRC_POLY;
+        crc = (crc >> 1) ^ CRC16_POLY_REVERSED;
       else
         crc = crc >> 1;
     }
   }
 
   return crc;
+}
+
+uint32_t calculateCRC32(const uint8_t * data, uint32_t length)
+{
+  uint32_t crc = 0xFFFFFFFF;  
+  for (int i = 0; i < length; i++)
+  {
+    crc = crc ^ data[i];
+    for (int j = 8; j; j--)
+       crc = (crc >> 1) ^ (CRC32_POLY_REVERSED & -(crc & 1));
+  }
+  return ~crc;
 }
 
 // string convert to uint8, MSB ("2C" to 0x2C)

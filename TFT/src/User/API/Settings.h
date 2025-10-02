@@ -167,7 +167,7 @@ typedef enum
 
 typedef struct
 {
-  uint16_t CRC_checksum;
+  uint32_t CRC_checksum;
 
   // General Settings
   uint8_t  serial_port[MAX_SERIAL_PORT_COUNT];

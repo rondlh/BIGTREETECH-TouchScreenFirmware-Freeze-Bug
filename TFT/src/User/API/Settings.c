@@ -1,7 +1,12 @@
 #include "Settings.h"
 #include "includes.h"
+#include <assert.h>
 
 SETTINGS infoSettings;
+
+// Ensure PARA_SIZE is defined large enough for user data
+static_assert(sizeof(infoSettings) <= PARA_SIZE - 36, "PARA_SIZE is too small"); // 4(TSC_SIGN) + (7 x 4)(TSC VALUES) + 4(PARA_SIGN) = 36 (see FlashStore.c)
+
 MACHINE_SETTINGS infoMachineSettings;
 
 static const uint8_t default_serial_port[]  = {SP_1, SP_2, SP_3, SP_4};
@@ -186,7 +191,7 @@ void initSettings(void)
   resetConfig();
 
   // calculate checksum excluding the CRC variable in infoSettings
-  infoSettings.CRC_checksum = calculateCRC16((uint8_t *) &infoSettings + sizeof(infoSettings.CRC_checksum),
+  infoSettings.CRC_checksum = calculateCRC32((uint8_t *) &infoSettings + sizeof(infoSettings.CRC_checksum),
                                                   sizeof(infoSettings) - sizeof(infoSettings.CRC_checksum));
 }
 
@@ -194,7 +199,7 @@ void initSettings(void)
 void saveSettings(void)
 {
   // calculate checksum excluding the CRC variable in infoSettings
-  uint32_t curCRC = calculateCRC16((uint8_t *) &infoSettings + sizeof(infoSettings.CRC_checksum),
+  uint32_t curCRC = calculateCRC32((uint8_t *) &infoSettings + sizeof(infoSettings.CRC_checksum),
                                         sizeof(infoSettings) - sizeof(infoSettings.CRC_checksum));
 
   if (curCRC != infoSettings.CRC_checksum)  // save to Flash only if CRC does not match
