@@ -38,7 +38,7 @@ void menuExtrude(void)
 
   menuDrawPage(&extrudeItems);
 
-  if (eAxisBackup.handled == false)
+  if (!eAxisBackup.handled)
   {
     TASK_LOOP_WHILE(isNotEmptyCmdQueue());  // wait for the communication to be clean
 
@@ -54,7 +54,7 @@ void menuExtrude(void)
 
   extruderReDraw(curExtruder_index, extrAmount, true);
 
-  if (eAxisBackup.relative == false)  // set extruder to relative
+  if (!eAxisBackup.relative)  // set extruder to relative
     mustStoreCmd("M83\n");
 
   heatSetUpdateSeconds(TEMPERATURE_QUERY_FAST_SECONDS);
@@ -85,28 +85,33 @@ void menuExtrude(void)
       case KEY_ICON_4:
         if (infoSettings.ext_count > 1)
         {
-          if (longPressed) // IRON, jump to heating 
+          if (longPressed) 
           {
-            heatSetCurrentIndex(curExtruder_index);  // preselect current nozzle for "Heat" menu
-
-            OPEN_MENU(menuHeat);
-            menuHeat();  // call from here to retain E axis parameters
-
-            if (MENU_IS(menuExtrude))  // user exited from heating menu by short pressing "Back"
-            {
-              menuDrawPage(&extrudeItems);
-              extruderReDraw(curExtruder_index, extrAmount, true);
-            }
-            else  // user exited from heating menu by long pressing "Back"
-            {
-              eAxisBackup.handled = false;  // exiting from Extrude menu, trigger E axis parameters restore
-            }
+             OPEN_MENU(menuHeat);
+             menuHeat();
           }
           else
           {
             curExtruder_index = (curExtruder_index + 1) % infoSettings.ext_count;
 
             extruderReDraw(curExtruder_index, extrAmount, true);
+          }
+        }
+        else
+        {
+          heatSetCurrentIndex(curExtruder_index);  // preselect current nozzle for "Heat" menu
+
+          OPEN_MENU(menuHeat);
+          menuHeat();  // call from here to retain E axis parameters
+
+          if (MENU_IS(menuExtrude))  // user exited from heating menu by short pressing "Back"
+          {
+            menuDrawPage(&extrudeItems);
+            extruderReDraw(curExtruder_index, extrAmount, true);
+          }
+          else  // user exited from heating menu by long pressing "Back"
+          {
+            eAxisBackup.handled = false;  // exiting from Extrude menu, trigger E axis parameters restore
           }
         }
         break;
