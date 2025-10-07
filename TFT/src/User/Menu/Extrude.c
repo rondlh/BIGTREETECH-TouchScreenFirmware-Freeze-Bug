@@ -87,8 +87,18 @@ void menuExtrude(void)
         {
           if (longPressed) 
           {
-             OPEN_MENU(menuHeat);
-             menuHeat();
+            OPEN_MENU(menuHeat);
+            menuHeat();
+
+            if (MENU_IS(menuExtrude))  // user exited from heating menu by short pressing "Back"
+            {
+              menuDrawPage(&extrudeItems);
+              extruderReDraw(curExtruder_index, extrAmount, true);
+            }
+            else  // user exited from heating menu by long pressing "Back"
+            {
+              eAxisBackup.handled = false;  // exiting from Extrude menu, trigger E axis parameters restore
+            }
           }
           else
           {
