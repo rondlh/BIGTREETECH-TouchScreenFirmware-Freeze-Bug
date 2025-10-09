@@ -2,8 +2,7 @@
 #include "includes.h"
 #include <math.h>
 
-#define NUMBER_OF_ROWS_BEFORE_YIELD  16  // yield to RAPID_SERIAL_LOOP after drawing a number of rows
-                                         // use a power of 2 for efficiency (2 4, 8, 16, 32, 64, 128, 256)
+#define NUMBER_OF_PIXELS_BEFORE_YIELD 10000 // yield to RAPID_SERIAL_LOOP after drawing a number of pixels
 
 static uint16_t foreGroundColor = WHITE;
 static uint16_t backGroundColor = BLACK;
@@ -136,11 +135,14 @@ void GUI_ClearPrect(const GUI_RECT * rect)
  * @param y1 - y point of bottom right corner
  * @param color - color to be filled
  */
+
 void GUI_FillRectColor(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t color)
 {
-  for (uint16_t y = y0; y < y1; y += NUMBER_OF_ROWS_BEFORE_YIELD)
+  uint16_t rows = 1 + NUMBER_OF_PIXELS_BEFORE_YIELD / (y1 - y0);
+  
+  for (uint16_t y = y0; y < y1; y += rows)
   {
-    uint16_t y_end = (y + NUMBER_OF_ROWS_BEFORE_YIELD <= y1) ? y + NUMBER_OF_ROWS_BEFORE_YIELD - 1 : y1 - 1;
+    uint16_t y_end = (y + rows <= y1) ? y + rows - 1 : y1 - 1;
     LCD_SetWindow(x0, y, x1 - 1, y_end);
     uint32_t pixels = (uint32_t)(x1 - x0) * (y_end - y + 1);
     
