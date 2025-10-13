@@ -136,9 +136,13 @@ uint16_t KEY_GetValue(uint8_t totalRect, const GUI_RECT * menuRect)
   return key_return;
 }
 
-void drawTouchTargetCross(uint16_t x, uint16_t y)
+void drawTouchTargetCross(uint16_t x, uint16_t y, bool red)
 {
-  GUI_SetColor(RED);
+  if (red)
+    GUI_SetColor(RED); // IRON, WAS BLACK
+  else
+    GUI_SetColor(WHITE);
+
   GUI_FillCircle(x, y, 5);
 
   GUI_HLine(x - 25, y, x + 25);
@@ -150,9 +154,9 @@ static inline uint8_t TS_CalibrationEnsure(uint16_t x, uint16_t y)
   uint16_t tp_x, tp_y;
   int lcd_x, lcd_y;
 
-  drawTouchTargetCross(x, y);
+  drawTouchTargetCross(x, y, true);
 
-  while (!TS_IsPressed());
+  while (!TS_IsPressed()) {};
 
   tp_x = XPT2046_Repeated_Compare_AD(CMD_RDX);
   tp_y = XPT2046_Repeated_Compare_AD(CMD_RDY);
@@ -169,7 +173,7 @@ static inline uint8_t TS_CalibrationEnsure(uint16_t x, uint16_t y)
   }
   else
   {
-    while (TS_IsPressed());
+    while (TS_IsPressed()) {};
 
     GUI_SetColor(RED);
     GUI_DispStringCenter(LCD_WIDTH / 2, 62, (int32_t)LABEL_ADJUST_FAILED);
@@ -199,15 +203,20 @@ void TS_Calibrate(void)
 
     for (tp_num = 0; tp_num < 3; tp_num++)
     {
-      drawTouchTargetCross(LCD_X[tp_num], LCD_Y[tp_num]);
-      while (!TS_IsPressed());
+  if (tp_num)
+    drawTouchTargetCross(LCD_X[tp_num - 1], LCD_Y[tp_num - 1], false);
+
+  drawTouchTargetCross(LCD_X[tp_num], LCD_Y[tp_num], true);
+
+  while (!TS_IsPressed()) {};
       Buzzer_Play(SOUND_KEYPRESS);
 
       TP_X[tp_num] = XPT2046_Repeated_Compare_AD(CMD_RDX);
       TP_Y[tp_num] = XPT2046_Repeated_Compare_AD(CMD_RDY);
 
-      while (TS_IsPressed());
+      while (TS_IsPressed()) {};
     }
+    drawTouchTargetCross(LCD_X[tp_num - 1], LCD_Y[tp_num - 1], false);
 
     K = (X1 - X3) * (Y2 - Y3) - (X2 - X3) * (Y1 - Y3);
     A = ((XL1 - XL3) * (Y2 - Y3) - (XL2 - XL3) * (Y1 - Y3));
