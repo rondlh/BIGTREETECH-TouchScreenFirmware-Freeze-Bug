@@ -10,9 +10,8 @@ extern "C" {
 
 typedef enum
 {
-  SRC_TERMINAL_GCODE = 0,
+  SRC_TERMINAL_GCODE = 5,
   SRC_TERMINAL_ACK,
-  SRC_TERMINAL_COUNT
 } TERMINAL_SRC;
 
 void terminalCache(const char * stream, uint16_t streamLen, SERIAL_PORT_INDEX portIndex, TERMINAL_SRC src);
