@@ -27,24 +27,20 @@ uint32_t Find_EmptyFlashSlot()
   return (FLASH_SECTOR_SIZE / PARA_SIZE); // nothing found, indicate impossible slot
 }
 
-void HAL_FlashRead(uint8_t * data, uint32_t len)
+void HAL_FlashRead(uint32_t * data, uint32_t len)
 {
-  uint32_t i = 0;
-
   uint32_t slot = Find_EmptyFlashSlot();
   if (slot) // read from slot before empty slot
     slot--;
 
-  for (i = 0; i < len; i++)
+  for (uint32_t i = 0; i < (len >> 2); i++)
   {
-    data[i] = *((volatile uint8_t *)(SIGN_ADDRESS + (slot * PARA_SIZE) + i));
+    data[i] = *((volatile uint32_t *)(SIGN_ADDRESS + (slot * PARA_SIZE) + (i << 2)));
   }
 }
 
-void HAL_FlashWrite(uint8_t * data, uint32_t len)
+void HAL_FlashWrite(uint32_t * data, uint32_t len)
 {
-  uint32_t i = 0;
- 
   // find an empty flash slot
   uint32_t slot = Find_EmptyFlashSlot();
 
@@ -60,11 +56,9 @@ void HAL_FlashWrite(uint8_t * data, uint32_t len)
     slot = 0; // restart from the first slot
   }
 
-  for (i = 0; i < len; i += 2)
+  for (uint32_t i = 0; i < (len >> 2); i++)
   {
-    uint16_t data16 = data[i] | (data[MIN(i + 1, len - 1)] << 8);  // gd32f20x needs to write at least 16 bits at a time
-
-    fmc_halfword_program(SIGN_ADDRESS + (slot * PARA_SIZE) + i, data16);
+    fmc_word_program(SIGN_ADDRESS + (slot * PARA_SIZE) + (i << 2), data[i]);
     fmc_flag_clear(FMC_FLAG_BANK0_END);
     fmc_flag_clear(FMC_FLAG_BANK0_WPERR);
     fmc_flag_clear(FMC_FLAG_BANK0_PGERR);

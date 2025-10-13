@@ -4,32 +4,33 @@
 #include "FlashStore.h"
 
 /*
- * Sector 0 0x0800 0000 - 0x0800 3FFF 16 Kbyte
- * Sector 1 0x0800 4000 - 0x0800 7FFF 16 Kbyte
- * Sector 2 0x0800 8000 - 0x0800 BFFF 16 Kbyte
- * Sector 3 0x0800 C000 - 0x0800 FFFF 16 Kbyte
- * Sector 4 0x0801 0000 - 0x0801 FFFF 64 Kbyte
- * Sector 5 0x0802 0000 - 0x0803 FFFF 128 Kbyte  // 256KByte
- * Sector 6 0x0804 0000 - 0x0805 FFFF 128 Kbyte
- * ...
- * ...
- * ...
- * Sector 11 0x080E 0000 - 0x080F FFFF 128 Kbyte
+ * Sector  0 0x0800 0000 - 0x0800 3FFF  16KByte
+ * Sector  1 0x0800 4000 - 0x0800 7FFF  16KByte
+ * Sector  2 0x0800 8000 - 0x0800 BFFF  16KByte
+ * Sector  3 0x0800 C000 - 0x0800 FFFF  16KByte
+ * Sector  4 0x0801 0000 - 0x0801 FFFF  64KByte
+ * Sector  5 0x0802 0000 - 0x0803 FFFF 128KByte ___256KByte
+ * Sector  6 0x0804 0000 - 0x0805 FFFF 128KByte
+ * Sector  7 0x0804 0000 - 0x0807 FFFF 128KByte ___512KByte
+ * Sector  8 0x0804 0000 - 0x0809 FFFF 128KByte
+ * Sector  9 0x0804 0000 - 0x080B FFFF 128KByte
+ * Sector 10 0x0804 0000 - 0x080D FFFF 128KByte
+ * Sector 11 0x080E 0000 - 0x080F FFFF 128KByte ___1MByte
  */
 
-#if defined(MKS_TFT35_V1_0)  // MKS_TFT35_V1_0 bootloader uses sector 0, 1 and 2 (48Kbytes)
-  #define ADDR_FLASH_SECTOR_0  ((uint32_t)0x08000000)  // base @ of sector  0,  16 Kbytes
-  #define ADDR_FLASH_SECTOR_1  ((uint32_t)0x08004000)  // base @ of sector  1,  16 Kbytes
-  #define ADDR_FLASH_SECTOR_2  ((uint32_t)0x08008000)  // base @ of sector  2,  16 Kbytes
-  #define ADDR_FLASH_SECTOR_3  ((uint32_t)0x0800C000)  // base @ of sector  3,  16 Kbytes
-  #define ADDR_FLASH_SECTOR_4  ((uint32_t)0x08010000)  // base @ of sector  4,  64 Kbytes
-  #define ADDR_FLASH_SECTOR_5  ((uint32_t)0x08020000)  // base @ of sector  5, 128 Kbytes
-  #define ADDR_FLASH_SECTOR_6  ((uint32_t)0x08040000)  // base @ of sector  6, 128 Kbytes
-  #define ADDR_FLASH_SECTOR_7  ((uint32_t)0x08060000)  // base @ of sector  7, 128 Kbytes
-  #define ADDR_FLASH_SECTOR_8  ((uint32_t)0x08080000)  // base @ of sector  8, 128 Kbytes
-  #define ADDR_FLASH_SECTOR_9  ((uint32_t)0x080A0000)  // base @ of sector  9, 128 Kbytes
-  #define ADDR_FLASH_SECTOR_10 ((uint32_t)0x080C0000)  // base @ of sector 10, 128 Kbytes
-  #define ADDR_FLASH_SECTOR_11 ((uint32_t)0x080E0000)  // base @ of sector 11, 128 Kbytes
+#if defined(MKS_TFT35_V1_0)  // MKS_TFT35_V1_0 bootloader uses sector 0, 1 and 2 (48KBytes)
+  #define ADDR_FLASH_SECTOR_0  ((uint32_t)0x08000000)  // base @ of sector  0,  16 KBytes
+  #define ADDR_FLASH_SECTOR_1  ((uint32_t)0x08004000)  // base @ of sector  1,  16 KBytes
+  #define ADDR_FLASH_SECTOR_2  ((uint32_t)0x08008000)  // base @ of sector  2,  16 KBytes
+  #define ADDR_FLASH_SECTOR_3  ((uint32_t)0x0800C000)  // base @ of sector  3,  16 KBytes
+  #define ADDR_FLASH_SECTOR_4  ((uint32_t)0x08010000)  // base @ of sector  4,  64 KBytes
+  #define ADDR_FLASH_SECTOR_5  ((uint32_t)0x08020000)  // base @ of sector  5, 128 KBytes
+  #define ADDR_FLASH_SECTOR_6  ((uint32_t)0x08040000)  // base @ of sector  6, 128 KBytes
+  #define ADDR_FLASH_SECTOR_7  ((uint32_t)0x08060000)  // base @ of sector  7, 128 KBytes
+  #define ADDR_FLASH_SECTOR_8  ((uint32_t)0x08080000)  // base @ of sector  8, 128 KBytes
+  #define ADDR_FLASH_SECTOR_9  ((uint32_t)0x080A0000)  // base @ of sector  9, 128 KBytes
+  #define ADDR_FLASH_SECTOR_10 ((uint32_t)0x080C0000)  // base @ of sector 10, 128 KBytes
+  #define ADDR_FLASH_SECTOR_11 ((uint32_t)0x080E0000)  // base @ of sector 11, 128 KBytes
   #define ADDR_FLASH_SECTOR_12 ((uint32_t)0x08100000)  // base @ of sector 12, dummy
 
 
@@ -46,36 +47,23 @@
 
 #if defined(MKS_TFT35_V1_0)
 
-static inline uint32_t GetSector(uint32_t address)
-{
-  uint32_t sector = 0;
+// returns in which sector id (NOT 0-11!) a flash memory address is located
+uint8_t HAL_FlashGetSector(uint32_t flash_address)
+{ // Sector lookup table, 1 byte represents 16KB 
+  if (flash_address < FLASH_BASE)
+    return 0;
+  
+  static const uint8_t sector_data1[4] = {
+    FLASH_Sector_0, FLASH_Sector_1, FLASH_Sector_2, FLASH_Sector_3 };   // Sector  0-3  16KB
 
-  if ((address < ADDR_FLASH_SECTOR_1) && (address >= ADDR_FLASH_SECTOR_0))
-    sector = FLASH_Sector_0;
-  else if ((address < ADDR_FLASH_SECTOR_2) && (address >= ADDR_FLASH_SECTOR_1))
-    sector = FLASH_Sector_1;
-  else if ((address < ADDR_FLASH_SECTOR_3) && (address >= ADDR_FLASH_SECTOR_2))
-    sector = FLASH_Sector_2;
-  else if ((address < ADDR_FLASH_SECTOR_4) && (address >= ADDR_FLASH_SECTOR_3))
-    sector = FLASH_Sector_3;
-  else if ((address < ADDR_FLASH_SECTOR_5) && (address >= ADDR_FLASH_SECTOR_4))
-    sector = FLASH_Sector_4;
-  else if ((address < ADDR_FLASH_SECTOR_6) && (address >= ADDR_FLASH_SECTOR_5))
-    sector = FLASH_Sector_5;
-  else if ((address < ADDR_FLASH_SECTOR_7) && (address >= ADDR_FLASH_SECTOR_6))
-    sector = FLASH_Sector_6;
-  else if ((address < ADDR_FLASH_SECTOR_8) && (address >= ADDR_FLASH_SECTOR_7))
-    sector = FLASH_Sector_7;
-  else if ((address < ADDR_FLASH_SECTOR_9) && (address >= ADDR_FLASH_SECTOR_8))
-    sector = FLASH_Sector_8;
-  else if ((address < ADDR_FLASH_SECTOR_10) && (address >= ADDR_FLASH_SECTOR_9))
-    sector = FLASH_Sector_9;
-  else if ((address < ADDR_FLASH_SECTOR_11) && (address >= ADDR_FLASH_SECTOR_10))
-    sector = FLASH_Sector_10;
-  else if ((address < ADDR_FLASH_SECTOR_12) && (address >= ADDR_FLASH_SECTOR_11))
-    sector = FLASH_Sector_11;
+  static const uint8_t sector_data2[8] = {
+    FLASH_Sector_4, FLASH_Sector_5, FLASH_Sector_6,  FLASH_Sector_7,    // Sector    4  64KB
+    FLASH_Sector_8, FLASH_Sector_9, FLASH_Sector_10, FLASH_Sector_11 }; // Sector 5-11 128KB
 
-  return sector;
+  if (flash_address < FLASH_SECTOR_4_ADDR)
+    return sector_data1[((flash_address - FLASH_BASE) >> 14) % 4];
+
+  return sector_data2[((flash_address - FLASH_BASE) >> 17) % 8];
 }
 
 #endif  // MKS_TFT35_V1_0
@@ -91,24 +79,20 @@ uint32_t Find_EmptyFlashSlot()
   return (FLASH_SECTOR_SIZE / PARA_SIZE); // nothing found, indicate impossible slot
 }
 
-void HAL_FlashRead(uint8_t * data, uint32_t len)
+void HAL_FlashRead(uint32_t * data, uint32_t len)
 {
-  uint32_t i = 0;
-
   uint32_t slot = Find_EmptyFlashSlot();
   if (slot) // read from slot before empty slot
     slot--;
 
-  for (i = 0; i < len; i++)
+  for (uint32_t i = 0; i < (len >> 2); i++)
   {
-    data[i] = *((volatile uint8_t *)(SIGN_ADDRESS + (slot * PARA_SIZE) + i));
+    data[i] = *((volatile uint32_t *)(SIGN_ADDRESS + (slot * PARA_SIZE) + (i << 2)));
   }
 }
 
-void HAL_FlashWrite(uint8_t * data, uint32_t len)
+void HAL_FlashWrite(uint32_t * data, uint32_t len)
 {
-  uint32_t i = 0;
- 
   // find an empty flash slot
   uint32_t slot = Find_EmptyFlashSlot();
 
@@ -117,17 +101,19 @@ void HAL_FlashWrite(uint8_t * data, uint32_t len)
   if (slot == (FLASH_SECTOR_SIZE / PARA_SIZE)) // no more empty slots, start over
   {
     #if defined(MKS_TFT35_V1_0)  // added for MKS_TFT35_V1_0 support
-      FLASH_EraseSector(GetSector(SIGN_ADDRESS), VoltageRange_1);
+      FLASH_EraseSector(HAL_FlashGetSector(SIGN_ADDRESS), VoltageRange_3);
     #else
-      FLASH_EraseSector(FLASH_SECTOR, VoltageRange_1);
+      FLASH_EraseSector(FLASH_SECTOR, VoltageRange_3);
     #endif
-
     slot = 0; // restart from the first slot
   }
 
   for (i = 0; i < len; i++)
   {
     FLASH_ProgramByte(SIGN_ADDRESS + (slot * PARA_SIZE) + i, data[i]);
+  for (uint32_t i = 0; i < (len >> 2); i++)
+  {
+    FLASH_ProgramWord(SIGN_ADDRESS + (slot * PARA_SIZE) + (i << 2), data[i]);
   }
 
   FLASH_Lock();

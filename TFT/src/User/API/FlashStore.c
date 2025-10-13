@@ -54,7 +54,7 @@ void readStoredPara(void)
   #ifdef I2C_EEPROM  // added I2C_EEPROM suppport for MKS_TFT35_V1_0
     EEPROM_FlashRead((uint8_t*)data, PARA_SIZE);
   #else
-    HAL_FlashRead((uint8_t*)data, PARA_SIZE);
+    HAL_FlashRead(data, PARA_SIZE);
   #endif
 
   sign = data[index++];
@@ -102,7 +102,7 @@ void storePara(void)
   #ifdef I2C_EEPROM                      // added I2C_EEPROM suppport for MKS_TFT35_V1_0
     EEPROM_FlashWrite((uint8_t*)data, PARA_SIZE);  // store settings in I2C_EEPROM
   #else
-    HAL_FlashWrite((uint8_t*)data, PARA_SIZE);
+    HAL_FlashWrite(data, PARA_SIZE);
   #endif
 }
 

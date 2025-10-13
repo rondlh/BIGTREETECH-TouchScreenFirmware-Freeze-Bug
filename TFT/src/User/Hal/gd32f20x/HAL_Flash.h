@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-void HAL_FlashRead(uint8_t * data, uint32_t len);
-void HAL_FlashWrite(uint8_t * data, uint32_t len);
+void HAL_FlashRead(uint32_t * data, uint32_t len);
+void HAL_FlashWrite(uint32_t * data, uint32_t len);
 
 #endif
