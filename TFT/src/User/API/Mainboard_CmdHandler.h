@@ -24,6 +24,7 @@ uint8_t getCmdQueueCount(void);
 
 bool isPendingCmd(void);            // if pending gcode
 bool isFullCmdQueue(void);
+bool isFullCmdQueue2(const uint16_t cmd_length);
 bool isIdleCmdQueue(void);          // if empty command queue and no pending gcode
 bool isNotEmptyCmdQueue(void);      // if not empty command queue or no available gcode tx slot
 bool isEnqueuedCmd(const CMD cmd);  // if gcode is already enqueued on command queue

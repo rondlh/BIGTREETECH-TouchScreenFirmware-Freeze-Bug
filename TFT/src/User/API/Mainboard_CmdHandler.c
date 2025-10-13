@@ -2,8 +2,9 @@
 #include "includes.h"
 #include "RRFStatusControl.h"
 
-#define CMD_QUEUE_SIZE  20
 #define CMD_RETRY_COUNT 3
+#define CMD_BUFFER_SIZE 2048  // total buffer size for variable-length commands
+#define MAX_SCRIPT_SIZE 256   // max size of gcode script
 
 typedef struct
 {
@@ -11,12 +12,11 @@ typedef struct
   SERIAL_PORT_INDEX port_index;  // 0: for SERIAL_PORT, 1: for SERIAL_PORT_2 etc.
 } GCODE_INFO;
 
-typedef struct
-{
-  GCODE_INFO queue[CMD_QUEUE_SIZE];
-  uint8_t index_r;  // ring buffer read position
-  uint8_t index_w;  // ring buffer write position
-  uint8_t count;    // count of commands in the queue
+typedef struct {
+  char buffer[CMD_BUFFER_SIZE];  // Commands buffer with ports and null terminators
+  uint16_t index_r;    // ring buffer read position
+  uint16_t index_w;    // ring buffer write position
+  uint16_t cmd_count;  // count of commands in the queue
 } GCODE_QUEUE;
 
 typedef struct
@@ -37,8 +37,9 @@ typedef enum
 static GCODE_QUEUE cmdQueue;                    // command queue where commands to be sent are stored
 static GCODE_RETRY_INFO cmdRetryInfo = {0};     // command retry info. Required COMMAND_CHECKSUM feature enabled in TFT
 
-static char * cmd_ptr;
-static uint8_t cmd_len;
+static char cmd_buffer[CMD_MAX_SIZE];           // Single command buffer with unwrapped command
+static char * cmd_ptr = cmd_buffer;             // Always points to the command buffer
+static uint8_t cmd_len = 0;                     // Keep track of the command length in the command buffer
 static SERIAL_PORT_INDEX cmd_port_index;        // index of serial port originating the gcode
 static uint8_t cmd_base_index;                  // base index in case the gcode has checksum ("Nxx " is present at the beginning of gcode)
 static uint8_t cmd_index;
@@ -49,7 +50,7 @@ static WRITING_MODE writing_mode = NO_WRITING;  // writing mode. Used by M28 and
 
 uint8_t getCmdQueueCount(void)
 {
-  return cmdQueue.count;
+  return cmdQueue.cmd_count;
 }
 
 bool isPendingCmd(void)
@@ -57,27 +58,66 @@ bool isPendingCmd(void)
   return (infoHost.tx_count != 0);
 }
 
+uint16_t calculateUsedBufferSpace(void)
+{
+  return (cmdQueue.index_w >= cmdQueue.index_r) ?
+         (cmdQueue.index_w  - cmdQueue.index_r) :                 // continuous data
+         (CMD_BUFFER_SIZE - cmdQueue.index_r + cmdQueue.index_w); // wrapped data
+}
+
+// signal command queue is full if there there is less space than the max command size
 bool isFullCmdQueue(void)
 {
-  return (cmdQueue.count >= CMD_QUEUE_SIZE);
+  return ((CMD_BUFFER_SIZE - calculateUsedBufferSpace()) < (sizeof(SERIAL_PORT_INDEX) + CMD_MAX_SIZE + 1));
 }
 
 bool isIdleCmdQueue(void)
 {
-  return (cmdQueue.count == 0 && infoHost.tx_count == 0);  // if empty command queue and no pending command
+  return ((cmdQueue.cmd_count == 0) && (infoHost.tx_count == 0));  // if empty command queue and no pending command
+}
+
+bool isFullCmdQueue2(const uint16_t cmd_length)  // Check if there is room for the specified command length
+{
+  uint16_t total_size = sizeof(SERIAL_PORT_INDEX) + cmd_length + 1;    // port id + cmd length + null character
+  return (CMD_BUFFER_SIZE - calculateUsedBufferSpace()) < total_size;  // keep 1 byte empty so index_w != index_r (wasted slot scheme)
 }
 
 bool isNotEmptyCmdQueue(void)
 {
-  return (cmdQueue.count != 0 || infoHost.tx_slots == 0);  // if not empty command queue or no available command tx slot
+  return (cmdQueue.cmd_count != 0 || infoHost.tx_slots == 0);  // if not empty command queue or no available command tx slot
 }
 
+// check if a command is already in the queue, the port id is ignored
 bool isEnqueuedCmd(const CMD cmd)
 {
-  for (int i = 0; i < cmdQueue.count; i++)
+  uint16_t buf_idx = cmdQueue.index_r;
+
+  for (int i = 0; i < cmdQueue.cmd_count; i++)  // check all queued commands
   {
-    if (strcmp(cmd, cmdQueue.queue[(cmdQueue.index_r + i) % CMD_QUEUE_SIZE].gcode) == 0)
-      return true;
+    buf_idx = (buf_idx + sizeof(SERIAL_PORT_INDEX)) % CMD_BUFFER_SIZE; // ignore the port id
+
+    uint16_t cmd_idx = 0;                        // index into user-supplied cmd
+    for (uint16_t i = 0; i <= strlen(cmd); i++)  // include the terminating '\0' in the comparison
+    {
+      char c = cmdQueue.buffer[buf_idx];
+      if (c == '\0')
+      {
+        if (cmd[cmd_idx] == '\0')
+          return true;  // matching command found, done!
+        break;
+      }
+
+      if (cmd[cmd_idx] != c)  // no match, done for this command
+        break;
+
+      cmd_idx++;
+      buf_idx = (buf_idx + 1) % CMD_BUFFER_SIZE;
+    }
+
+    while (cmdQueue.buffer[buf_idx] != '\0')
+      buf_idx = (buf_idx + 1) % CMD_BUFFER_SIZE; // go to the next command
+
+    buf_idx = (buf_idx + 1) % CMD_BUFFER_SIZE;   // skip the '\0' behind the command
   }
 
   return false;
@@ -88,17 +128,28 @@ bool isCmdWritingMode(void)
   return (writing_mode != NO_WRITING);
 }
 
-// common store gcode cmd on cmdQueue queue
-static void commonStoreCmd(GCODE_QUEUE * pQueue, const char * format, va_list va)
+// store a command with its port in the command buffer
+// ensure there is enough command buffer space available before calling this function
+// required space: strlen(cmd) + 1 + sizeof(SERIAL_PORT_INDEX)
+static bool storeCmdWithPort(const char *cmd, SERIAL_PORT_INDEX port_index)
 {
-  vsnprintf(pQueue->queue[pQueue->index_w].gcode, CMD_MAX_SIZE, format, va);
+  uint16_t cmd_len = MIN(CMD_MAX_SIZE - 1, strlen(cmd));
 
-  pQueue->queue[pQueue->index_w].port_index = PORT_1;  // port index for SERIAL_PORT
-  pQueue->index_w = (pQueue->index_w + 1) % CMD_QUEUE_SIZE;
-  pQueue->count++;
+  //cmdQueue.index_w %= CMD_BUFFER_SIZE; // Make sure index_w is in bounds //??? NEEDED?
+  cmdQueue.buffer[cmdQueue.index_w] = port_index; // Store port in first byte of record
+  cmdQueue.index_w = (cmdQueue.index_w + sizeof(SERIAL_PORT_INDEX)) % CMD_BUFFER_SIZE;
+
+  for (uint16_t i = 0; i <= cmd_len; ++i) // Copy command + '\0'
+  {
+    cmdQueue.buffer[cmdQueue.index_w] = cmd[i];
+    cmdQueue.index_w = (cmdQueue.index_w + 1) % CMD_BUFFER_SIZE;
+  }
+
+  cmdQueue.cmd_count++;
+  return true;
 }
 
-// store gcode cmd on cmdQueue queue.
+// store gcode cmd in cmdQueue queue.
 // This command will be sent to the printer by sendQueueCmd().
 // If the cmdQueue queue is full, a reminder message is displayed and the command is discarded
 bool storeCmd(const char * format, ...)
@@ -106,20 +157,48 @@ bool storeCmd(const char * format, ...)
   if (format[0] == 0)
     return false;
 
-  if (cmdQueue.count >= CMD_QUEUE_SIZE)
-  {
+  char temp_cmd[CMD_MAX_SIZE];
+
+  va_list va;
+  va_start(va, format);
+  vsnprintf(temp_cmd, CMD_MAX_SIZE, format, va);
+  temp_cmd[CMD_MAX_SIZE - 1] = '\0'; // IRON, MAKE SURE THE STRING IS TERMINATED  
+  uint16_t cmd_length = strlen(temp_cmd);
+
+  if (isFullCmdQueue2(cmd_length)) {
     setReminderMsg(LABEL_BUSY, SYS_STATUS_BUSY);
 
     return false;
   }
+    
+  storeCmdWithPort(temp_cmd, PORT_1);
 
-  va_list va;
-
-  va_start(va, format);
-  commonStoreCmd(&cmdQueue, format, va);
   va_end(va);
 
   return true;
+}
+
+// Retrieve command with its port, index_r is updated later if a retry is not needed
+static bool getCmdWithPort(SERIAL_PORT_INDEX* port_index)
+{
+  if (cmdQueue.cmd_count == 0)
+    return false;
+
+  uint16_t rd = cmdQueue.index_r; /// ??? % CMD_BUFFER_SIZE;    // keep read index in bounds
+  *port_index = cmdQueue.buffer[rd];                   // first byte is the port
+  rd += sizeof(SERIAL_PORT_INDEX);                     // skip past port byte
+  
+  for (uint16_t i = 0; i < CMD_MAX_SIZE - 1; i++)
+  {
+    cmd_buffer[i] = cmdQueue.buffer[rd % CMD_BUFFER_SIZE]; // Copy command to buffer
+    rd++;
+    if (cmd_buffer[i] == '\0')                             // found NUL terminator
+      return true;
+  }
+  
+  while (1); // should never occure!
+
+  return false; // should not occure
 }
 
 // store gcode cmd on cmdQueue queue.
@@ -130,17 +209,21 @@ void mustStoreCmd(const char * format, ...)
 {
   if (format[0] == 0)
     return;
-
-  if (cmdQueue.count >= CMD_QUEUE_SIZE)
-  {
-    setReminderMsg(LABEL_BUSY, SYS_STATUS_BUSY);
-    TASK_LOOP_WHILE(isFullCmdQueue());  // wait for a free slot in the queue in case the queue is currently full
-  }
+    
+  char temp_cmd[CMD_MAX_SIZE];
 
   va_list va;
-
   va_start(va, format);
-  commonStoreCmd(&cmdQueue, format, va);
+  vsnprintf(temp_cmd, CMD_MAX_SIZE, format, va);  
+
+  uint16_t cmd_length = strlen(temp_cmd);
+  if (isFullCmdQueue2(cmd_length))
+  {
+    setReminderMsg(LABEL_BUSY, SYS_STATUS_BUSY);
+    TASK_LOOP_WHILE(isFullCmdQueue2(cmd_length));   // wait for a free slot in the queue in case the queue is currently full
+  }
+
+  storeCmdWithPort(temp_cmd, PORT_1);
   va_end(va);
 }
 
@@ -151,25 +234,26 @@ void mustStoreScript(const char * format, ...)
   if (format[0] == 0)
     return;
 
-  char script[256];
+  char script[MAX_SCRIPT_SIZE];
   va_list va;
 
   va_start(va, format);
-  vsnprintf(script, 256, format, va);
+  vsnprintf(script, MAX_SCRIPT_SIZE, format, va);
   va_end(va);
 
   char * p = script;
   uint16_t i = 0;
   CMD cmd;
 
-  for (;;)
+  for (uint16_t a = 0; a < MAX_SCRIPT_SIZE; a++)
   {
     char c = *p++;
 
     if (!c)
       return;
 
-    cmd[i++] = c;
+    if (i < sizeof(cmd) - 1)
+      cmd[i++] = c;
 
     if (c == '\n')
     {
@@ -188,18 +272,14 @@ bool storeCmdFromUART(const CMD cmd, const SERIAL_PORT_INDEX portIndex)
   if (cmd[0] == 0)
     return false;
 
-  if (cmdQueue.count >= CMD_QUEUE_SIZE)
+  if (isFullCmdQueue2(strlen(cmd))) // Check if there is enough room
   {
     setReminderMsg(LABEL_BUSY, SYS_STATUS_BUSY);
 
     return false;
   }
 
-  strncpy_no_pad(cmdQueue.queue[cmdQueue.index_w].gcode, cmd, CMD_MAX_SIZE);
-
-  cmdQueue.queue[cmdQueue.index_w].port_index = portIndex;
-  cmdQueue.index_w = (cmdQueue.index_w + 1) % CMD_QUEUE_SIZE;
-  cmdQueue.count++;
+  storeCmdWithPort(cmd, portIndex);
 
   return true;
 }
@@ -207,7 +287,7 @@ bool storeCmdFromUART(const CMD cmd, const SERIAL_PORT_INDEX portIndex)
 // clear all gcode cmd in cmdQueue queue
 void clearCmdQueue(void)
 {
-  cmdQueue.count = cmdQueue.index_w = cmdQueue.index_r = 0;
+  cmdQueue.cmd_count = cmdQueue.index_w = cmdQueue.index_r = 0;
 }
 
 // strip out any leading space from the passed command.
@@ -232,9 +312,8 @@ static char * stripCmd(char * cmdPtr)
 // and return "true" if sent from TFT, otherwise "false"
 static inline bool getCmd(void)
 {
-  cmd_ptr = &cmdQueue.queue[cmdQueue.index_r].gcode[0];          // gcode
-  cmd_port_index = cmdQueue.queue[cmdQueue.index_r].port_index;  // index of serial port originating the gcode
-
+  if (!getCmdWithPort(&cmd_port_index))
+    return false;
   // strip out any leading space from the passed command.
   // Furthermore, skip any N[-0-9] (line number) and return a pointer to the beginning of the command
   //
@@ -308,8 +387,8 @@ static bool sendCmd(bool purge, bool avoidTerminal)
 
   if (!cmdRetryInfo.retry)  // if the command under processing is from command queue, dequeue the command
   {
-    cmdQueue.count--;
-    cmdQueue.index_r = (cmdQueue.index_r + 1) % CMD_QUEUE_SIZE;
+    cmdQueue.cmd_count--;
+    cmdQueue.index_r = (sizeof(SERIAL_PORT_INDEX) + cmdQueue.index_r + cmd_len + 1) % CMD_BUFFER_SIZE; // adjust index_r
   }
   else  // if there is a pending command to resend
   {
@@ -379,7 +458,7 @@ static int32_t cmd_second_value(void)
   if (secondValue != NULL)
     return strtol(secondValue + 1, NULL, 10);
 
-  return -0.5;
+  return 0;
 }
 
 // get the float after "code". Call after cmd_seen(code)
@@ -558,7 +637,7 @@ void handleCmdLineNumberMismatch(const uint32_t lineNumber)
 
     setCmdLineNumberBase(lineNumber);  // set base line number of next command sent by the TFT to the requested line number
 
-    CMD cmd;
+    CMD cmd = {0};
 
     sprintf(cmd, "M110 N%lu", lineNumber);
 
@@ -640,7 +719,7 @@ void sendQueueCmd(void)
 {
   // if no gcode tx slot available, or no gcode in command queue and no pending command retry,
   // or no minimum delay for next sending is elapsed, nothing to do
-  if (infoHost.tx_slots == 0 || (cmdQueue.count == 0 && !cmdRetryInfo.retry) || InfoHost_IsCmdDelayElapsed())
+  if (infoHost.tx_slots == 0 || (cmdQueue.cmd_count == 0 && !cmdRetryInfo.retry) || InfoHost_IsCmdDelayElapsed())
     return;
 
   bool avoid_terminal = false;
@@ -713,6 +792,12 @@ void sendQueueCmd(void)
 
         #ifdef SERIAL_PORT_2
           case 20:  // M20
+            if (isPrinting())
+            {
+              sendCmd(true, avoid_terminal);
+              return;
+            }
+            else
             if (!fromTFT)
             {
               if (initRemoteTFT())  // examples: "M20 SD:/test\n", "M20 S /test\n"
@@ -758,6 +843,11 @@ void sendQueueCmd(void)
             break;
 
           case 24:  // M24
+            if (isPrinting())
+            {
+              sendCmd(true, avoid_terminal);
+              return;
+            }
             if (!fromTFT)
             {
               // NOTE: If the file was selected (with M23) from onboard media, infoFile.source will be set to
@@ -877,7 +967,7 @@ void sendQueueCmd(void)
               if (initRemoteTFT())  // examples: "M30 SD:/test/cap2.gcode\n", "M30 S /test/cap2.gcode\n"
               {
                 // then mount FS and delete the file (infoFile.source and infoFile.path are used)
-                if (mountFS() == true && f_unlink(infoFile.path) == FR_OK)
+                if (mountFS() && f_unlink(infoFile.path) == FR_OK)
                   Serial_Forward(cmd_port_index, "File deleted: ");
                 else
                   Serial_Forward(cmd_port_index, "Deletion failed, File: ");
@@ -932,7 +1022,7 @@ void sendQueueCmd(void)
             msgText = parseM118(rawMsg, &hasE, &hasA);
 
             // format: <E prefix> + <A prefix> + <text> + "\n"
-            snprintf(msg, CMD_MAX_SIZE, "%s%s%s\n", (hasE == true) ? "echo:" : "", (hasA == true) ? "//" : "", msgText);
+            snprintf(msg, CMD_MAX_SIZE, "%s%s%s\n", hasE ? "echo:" : "", hasA ? "//" : "", msgText);
 
             int32_t fwdPort = cmd_seen('P') ? cmd_value() : SUP_PORTS;
 
@@ -1030,6 +1120,9 @@ void sendQueueCmd(void)
               break;
 
             cmd_ptr[cmd_base_index + 3] = '4';  // avoid to send M109 to Marlin, send M104
+            
+            if (cmd_seen('T') && (cmd_value() != heatGetCurrentHotend()))
+              break;
             setHeatingWaiting(cmd_seen('T') ? cmd_value() : heatGetCurrentHotend());
           }
         // no break here. The data processing of M109 is the same as that of M104 below
@@ -1590,7 +1683,7 @@ send_cmd:
   //   - if TFT is connected, update tx slots and tx count
   //   - if TFT is not connected, consider the command as an out of band message
   //
-  if (sendCmd(false, avoid_terminal) == true && infoHost.connected == true)
+  if (sendCmd(false, avoid_terminal) && infoHost.connected)
   {
     // decrease the number of available tx slots and increase the pending commands tx count
     //
