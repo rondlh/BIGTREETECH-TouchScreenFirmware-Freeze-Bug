@@ -19,20 +19,18 @@
  */
 
 #if defined(MKS_TFT35_V1_0)  // MKS_TFT35_V1_0 bootloader uses sector 0, 1 and 2 (48KBytes)
-  #define ADDR_FLASH_SECTOR_0  ((uint32_t)0x08000000)  // base @ of sector  0,  16 KBytes
-  #define ADDR_FLASH_SECTOR_1  ((uint32_t)0x08004000)  // base @ of sector  1,  16 KBytes
-  #define ADDR_FLASH_SECTOR_2  ((uint32_t)0x08008000)  // base @ of sector  2,  16 KBytes
-  #define ADDR_FLASH_SECTOR_3  ((uint32_t)0x0800C000)  // base @ of sector  3,  16 KBytes
-  #define ADDR_FLASH_SECTOR_4  ((uint32_t)0x08010000)  // base @ of sector  4,  64 KBytes
-  #define ADDR_FLASH_SECTOR_5  ((uint32_t)0x08020000)  // base @ of sector  5, 128 KBytes
-  #define ADDR_FLASH_SECTOR_6  ((uint32_t)0x08040000)  // base @ of sector  6, 128 KBytes
-  #define ADDR_FLASH_SECTOR_7  ((uint32_t)0x08060000)  // base @ of sector  7, 128 KBytes
-  #define ADDR_FLASH_SECTOR_8  ((uint32_t)0x08080000)  // base @ of sector  8, 128 KBytes
-  #define ADDR_FLASH_SECTOR_9  ((uint32_t)0x080A0000)  // base @ of sector  9, 128 KBytes
-  #define ADDR_FLASH_SECTOR_10 ((uint32_t)0x080C0000)  // base @ of sector 10, 128 KBytes
-  #define ADDR_FLASH_SECTOR_11 ((uint32_t)0x080E0000)  // base @ of sector 11, 128 KBytes
-  #define ADDR_FLASH_SECTOR_12 ((uint32_t)0x08100000)  // base @ of sector 12, dummy
-
+  #define FLASH_SECTOR_0_ADDR  ((uint32_t)0x08000000)  // base @ of sector  0,  16 KBytes
+  #define FLASH_SECTOR_1_ADDR  ((uint32_t)0x08004000)  // base @ of sector  1,  16 KBytes
+  #define FLASH_SECTOR_2_ADDR  ((uint32_t)0x08008000)  // base @ of sector  2,  16 KBytes
+  #define FLASH_SECTOR_3_ADDR  ((uint32_t)0x0800C000)  // base @ of sector  3,  16 KBytes
+  #define FLASH_SECTOR_4_ADDR  ((uint32_t)0x08010000)  // base @ of sector  4,  64 KBytes
+  #define FLASH_SECTOR_5_ADDR  ((uint32_t)0x08020000)  // base @ of sector  5, 128 KBytes
+  #define FLASH_SECTOR_6_ADDR  ((uint32_t)0x08040000)  // base @ of sector  6, 128 KBytes
+  #define FLASH_SECTOR_7_ADDR  ((uint32_t)0x08060000)  // base @ of sector  7, 128 KBytes
+  #define FLASH_SECTOR_8_ADDR  ((uint32_t)0x08080000)  // base @ of sector  8, 128 KBytes
+  #define FLASH_SECTOR_9_ADDR  ((uint32_t)0x080A0000)  // base @ of sector  9, 128 KBytes
+  #define FLASH_SECTOR_10_ADDR ((uint32_t)0x080C0000)  // base @ of sector 10, 128 KBytes
+  #define FLASH_SECTOR_11_ADDR ((uint32_t)0x080E0000)  // base @ of sector 11, 128 KBytes
 
   // Default is use I2C AT24C16 2KBytes EEPROM
   // Thanks to darkspr1te for the implementation
