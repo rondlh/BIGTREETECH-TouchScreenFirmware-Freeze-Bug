@@ -1086,6 +1086,9 @@ void sendQueueCmd(void)
             stripCmdChecksum(rawMsg);
             msgText = stripCmdHead(rawMsg);
 
+            if (msgText[0] == 0)  // ignore M117 call without message
+              break;
+
             statusSetMsg("M117", msgText);
 
             if (MENU_IS_NOT(menuStatus))
